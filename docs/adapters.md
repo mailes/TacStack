@@ -17,7 +17,12 @@ HTTP 流式读取不在 v0.1 范围。
 - 任务与 episode：`meta/episode_ends`（int64 累计帧号）划分 episode；
   `data/*` 为 time-major 数组（首维 T = 总帧数）。
 - 触觉流命名约定：`<side>_tactile_data_<group>` 及 `_sensor_ / _type_ / _area_`
-  兄弟数组；`type=image` 映射到 `tactile_image`，`type=state` 映射到 `taxels`。
+  兄弟数组；`type=image` 映射到 `tactile_image`（GelSight 类，如 VLA_touch 的
+  `right_tactile_data_gripper`），`type=state` 映射到 `taxels`（uSkin 类，如
+  RH20TCfg7Tactile 的指尖触觉，真实形状为 (T, 2 areas, 16 taxels, 3 axes)）。
+  两种负载用同一个 `for observation in adapter` 读取，schema 不偏向任何一种模态。
+- RH20TCfg7Tactile 发布为分卷 tar（`*.tar.part-0000/0001/0002`）：按官方说明
+  先拼接为单个 tar 再交给本适配器（`cat parts > full.tar`），适配器不感知分卷。
 - 时间戳：FTP-1 的 `timestamps` 是帧序号（官方 parser 用 `arange` 合成），没有
   wall-clock 含义。适配器默认 `timestamp_domain="frame_index"`：
   `timestamp_ns = index * 1e9`（只保证单调可排序，不代表真实时间）；已知帧率时
@@ -33,8 +38,11 @@ CLI：
 ```bash
 uv run tacstack dataset list <tar-or-dir>
 uv run tacstack dataset inspect <tar-or-dir> --task <task> --episode 0
-uv run tacstack dataset convert <tar-or-dir> --episode 0 --out demo.mcap
+uv run tacstack dataset convert <tar-or-dir> --task <task> --episode 0 --out demo.mcap
 ```
+
+一个归档通常含多个 task（如 VLA_touch 内含 6 个 `<task>.zarr`），`list` 先看
+清单；多 task 时 `inspect` / `convert` 必须传 `--task`。
 
 MCAP 导出（`tacstack.integrations.mcap`）每帧写一条 JSON 消息（schema
 `tacstack.tactile_observation.v1`），Foxglove 可直接打开；体量大的数组只写

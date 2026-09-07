@@ -10,11 +10,13 @@ tactile sensors.
 **Status: Phase 0 done / Phase 1 dataset path implemented.** Core dataclasses,
 basic validation, debug JSON and the Adapter / Model protocols are in place, and
 the first real data path works: the Open-X-Tactile (FTP-1) adapter reads
-tar-wrapped zarr episodes into `TactileObservation`, the CLI can list / inspect
-/ convert episodes, and conversion writes an MCAP record that Foxglove opens.
-Contact / slip detection, ONNX inference, the Rerun / ROS2 integrations and live
-sensors are not implemented yet. The bundled dataset fixture is synthetic; its
-layout mirrors the real release (see `tests/fixtures/README.md`).
+tar-wrapped zarr episodes into `TactileObservation` for both payload kinds —
+vision-tactile image streams (GelSight) and taxel state streams (uSkin) — the
+CLI can list / inspect / convert episodes, and conversion writes an MCAP record
+that Foxglove opens. Contact / slip detection, ONNX inference, the Rerun / ROS2
+integrations and live sensors are not implemented yet. The bundled dataset
+fixture is synthetic; its layout mirrors the real releases (see
+`tests/fixtures/README.md`).
 
 ## Getting started
 
@@ -39,8 +41,8 @@ synthetic fixture):
 
 ```bash
 uv run tacstack dataset list tests/fixtures/open_x_tactile/demo_wipe.tar
-uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0
-uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0 --out demo.mcap
+uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --task Wipe_Demo --episode 0
+uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --task Wipe_Demo --episode 0 --out demo.mcap
 uv run python examples/replay_open_x_tactile.py
 ```
 
@@ -88,7 +90,7 @@ uv run pre-commit install
 
 ## Next steps
 
-1. Add a second modality (taxel / force dataset) to validate the Observation contract.
+1. Verify the adapter against the real RH20TCfg7Tactile (uSkin) release tar.
 2. Implement synchronized Rerun replay.
 3. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
 4. Bring up the first real sensor and verify live record / replay / inference.

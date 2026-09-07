@@ -7,8 +7,9 @@ Observation、模型接口和 Event contract，逐步降低不同传感器的接
 
 **当前状态：Phase 0 完成 / Phase 1 数据通路已实现。** 核心 dataclass、基础验证、
 debug JSON、Adapter / Model 协议已就绪，第一条真实数据通路可用：Open-X-Tactile
-（FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一 `TactileObservation`，CLI
-可 list / inspect / convert episode，转换输出 Foxglove 可打开的 MCAP 记录。
+（FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一 `TactileObservation`，同时
+支持两类负载——视触觉图像流（GelSight）与 taxel 状态流（uSkin）；CLI 可
+list / inspect / convert episode，转换输出 Foxglove 可打开的 MCAP 记录。
 contact/slip 检测、ONNX 推理、Rerun / ROS2 集成和真实传感器尚未实现。仓库内置
 的数据集 fixture 是合成内容，布局镜像真实发布格式（见 `tests/fixtures/README.md`）。
 
@@ -32,8 +33,8 @@ episode（CI 和下面的示例只使用内置合成 fixture，不下载数据�
 
 ```bash
 uv run tacstack dataset list tests/fixtures/open_x_tactile/demo_wipe.tar
-uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0
-uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0 --out demo.mcap
+uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --task Wipe_Demo --episode 0
+uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --task Wipe_Demo --episode 0 --out demo.mcap
 uv run python examples/replay_open_x_tactile.py
 ```
 
@@ -81,7 +82,7 @@ uv run pre-commit install
 
 ## 下一步
 
-1. 增加第二种模态（taxel / force 数据集），验证 Observation contract。
+1. 用真实 RH20TCfg7Tactile（uSkin）发布 tar 验证适配器。
 2. 实现 Rerun 同步回放。
 3. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
 4. 接入第一块真实传感器，验证 live record / replay / inference。

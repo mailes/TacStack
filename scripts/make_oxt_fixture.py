@@ -1,10 +1,19 @@
 """Generate the golden Open-X-Tactile fixture tar (deterministic, synthetic).
 
-Layout mirrors the real FTP-1 release tars (e.g. VLA_touch.tar on HuggingFace:
-https://huggingface.co/datasets/MJJJJ1064/FTP-1-Dataset, task sub-stores named
-``<Task>.zarr`` with ``meta/episode_ends`` and time-major ``data/*`` arrays,
-blosc/zstd compressed chunk members). All array CONTENT is synthetic; nothing
-is copied from the real dataset.
+Layout mirrors the real FTP-1 release tars on HuggingFace
+(https://huggingface.co/datasets/MJJJJ1064/FTP-1-Dataset): one tar holding
+several ``<Task>.zarr`` stores (zarr v2, ``meta/episode_ends`` plus time-major
+``data/*`` arrays, blosc/zstd compressed chunk members). Two tasks are
+generated to cover both tactile payload kinds:
+
+- ``Wipe_Demo`` mirrors the VLA_touch gripper layout: a GelSightMini image
+  stream (``right_tactile_data_gripper``, type ``image``).
+- ``task_0001_Pick_Demo`` mirrors the RH20TCfg7Tactile (uSkin) layout: a
+  taxel stream (``left_tactile_data_fingertip``, type ``state``, shaped
+  (T, 2, 16, 3) like RH20T's 2 fingertips x 16 taxels x 3 axes) plus a
+  ``right_hand_pose`` array as shipped by that release.
+
+All array CONTENT is synthetic; nothing is copied from the real datasets.
 
 Determinism: content is derived from frame indices only (no RNG), tar member
 mtimes/ids are zeroed, and member order is a fixed permutation that places
@@ -25,11 +34,20 @@ import numcodecs
 import numpy as np
 import zarr
 
-EPISODE_ENDS = [10, 25, 40]  # 3 episodes, 40 frames total
-T = EPISODE_ENDS[-1]
 H = W = 32  # deliberately small; the adapter must not assume 224x224
-AREA_KEY = "right_tactile_area_gripper"
-DATA_KEY = "right_tactile_data_gripper"
+
+# Wipe_Demo: FTP-1 gripper layout (VLA_touch-like), image stream
+WIPE_EPISODE_ENDS = [10, 25, 40]  # 3 episodes, 40 frames total
+WIPE_DATA_KEY = "right_tactile_data_gripper"
+WIPE_AREA_KEY = "right_tactile_area_gripper"
+
+# task_0001_Pick_Demo: FTP-1 uSkin layout (RH20TCfg7Tactile-like), taxel stream
+PICK_EPISODE_ENDS = [8, 20]  # 2 episodes, 20 frames total
+PICK_DATA_KEY = "left_tactile_data_fingertip"
+PICK_AREA_KEY = "left_tactile_area_fingertip"
+PICK_SENSOR = "uSkin"
+PICK_TAXELS = 16  # RH20T fingertip tactile: 2 areas x 16 taxels x 3 axes
+PICK_AXES = 3
 
 
 def synthetic_frame(frame: int, area: int, height: int, width: int) -> np.ndarray:
@@ -43,7 +61,7 @@ def synthetic_frame(frame: int, area: int, height: int, width: int) -> np.ndarra
     return channels.astype(np.uint8)
 
 
-def build_zarr_tree(root: pathlib.Path) -> None:
+def make_writer(root: pathlib.Path):
     blosc = numcodecs.Blosc(cname="zstd", clevel=5, shuffle=numcodecs.Blosc.SHUFFLE)
 
     def put(
@@ -58,27 +76,65 @@ def build_zarr_tree(root: pathlib.Path) -> None:
             compressors=compressor,
         )
 
-    put("meta/episode_ends", np.array(EPISODE_ENDS, dtype="<i8"), (3,), compressor=None)
+    return put
+
+
+def build_wipe_task(root: pathlib.Path) -> None:
+    put = make_writer(root)
+    total = WIPE_EPISODE_ENDS[-1]
+    put("meta/episode_ends", np.array(WIPE_EPISODE_ENDS, dtype="<i8"), (3,), compressor=None)
 
     tactile = np.stack(
-        [np.stack([synthetic_frame(t, a, H, W) for a in range(2)], axis=0) for t in range(T)]
+        [np.stack([synthetic_frame(t, a, H, W) for a in range(2)], axis=0) for t in range(total)]
     )
-    camera = np.stack([synthetic_frame(t, 2, H, W) for t in range(T)])
+    camera = np.stack([synthetic_frame(t, 2, H, W) for t in range(total)])
 
-    put("data/timestamps", np.arange(T, dtype="<i8"), (10,))
+    put("data/timestamps", np.arange(total, dtype="<i8"), (10,))
     put("data/camera_main_rgb", camera, (10, H, W, 3))
     put(
         "data/right_arm_joints",
-        np.sin(np.arange(T * 7, dtype=np.float64) * 0.1).reshape(T, 7).astype("<f4"),
+        np.sin(np.arange(total * 7, dtype=np.float64) * 0.1).reshape(total, 7).astype("<f4"),
         (10, 7),
     )
-    put("data/right_hand_joints", np.linspace(0.0, 0.9, T, dtype="<f4").reshape(T, 1), (10, 1))
-    put("data/right_hand_joints_idx", np.full((T, 1), 28, dtype="<i4"), (10, 1))
-    put("data/" + DATA_KEY, tactile, (10, 2, H, W, 3))
-    put("data/" + AREA_KEY, np.tile(np.array([0, 1], dtype="<i8"), (T, 1)), (10, 2))
-    put("data/right_tactile_sensor_gripper", np.full(T, "GelSightMini", dtype="<U12"), (10,))
-    put("data/right_tactile_type_gripper", np.full(T, "image", dtype="<U5"), (10,))
-    put("data/sub_task_instruction", np.full(T, "wipe the table", dtype="<U16"), (10,))
+    put(
+        "data/right_hand_joints",
+        np.linspace(0.0, 0.9, total, dtype="<f4").reshape(total, 1),
+        (10, 1),
+    )
+    put("data/right_hand_joints_idx", np.full((total, 1), 28, dtype="<i4"), (10, 1))
+    put("data/" + WIPE_DATA_KEY, tactile, (10, 2, H, W, 3))
+    put("data/" + WIPE_AREA_KEY, np.tile(np.array([0, 1], dtype="<i8"), (total, 1)), (10, 2))
+    put("data/right_tactile_sensor_gripper", np.full(total, "GelSightMini", dtype="<U12"), (10,))
+    put("data/right_tactile_type_gripper", np.full(total, "image", dtype="<U5"), (10,))
+    put("data/sub_task_instruction", np.full(total, "wipe the table", dtype="<U16"), (10,))
+
+
+def build_pick_task(root: pathlib.Path) -> None:
+    put = make_writer(root)
+    total = PICK_EPISODE_ENDS[-1]
+    put("meta/episode_ends", np.array(PICK_EPISODE_ENDS, dtype="<i8"), (2,), compressor=None)
+
+    # (T, 2 areas, 16 taxels, 3 axes) float32, like RH20T fingertip tactile
+    axes = np.arange(total * 2 * PICK_TAXELS * PICK_AXES, dtype=np.float64) * 0.05
+    taxel = 0.5 + 0.5 * np.sin(axes).reshape(total, 2, PICK_TAXELS, PICK_AXES)
+    camera = np.stack([synthetic_frame(t, 3, H, W) for t in range(total)])
+
+    put("data/timestamps", np.arange(total, dtype="<i8"), (8,))
+    put("data/" + PICK_DATA_KEY, (taxel.astype("<f4")), (8, 2, PICK_TAXELS, PICK_AXES))
+    put(
+        "data/" + PICK_AREA_KEY,
+        np.tile(np.array([0, 1], dtype="<i8"), (total, 1)),
+        (8, 2),
+    )
+    put("data/left_tactile_sensor_fingertip", np.full(total, PICK_SENSOR, dtype="<U8"), (8,))
+    put("data/left_tactile_type_fingertip", np.full(total, "state", dtype="<U5"), (8,))
+    put(
+        "data/right_hand_pose",
+        np.sin(np.arange(total * 6, dtype=np.float64) * 0.2).reshape(total, 1, 6).astype("<f4"),
+        (8, 1, 6),
+    )
+    put("data/right_wrist_camera_rgb", camera, (8, H, W, 3))
+    put("data/sub_task_instruction", np.full(total, "pick up the dish", dtype="<U16"), (8,))
 
 
 def tar_member_sort(path: str) -> tuple[str, str]:
@@ -89,21 +145,22 @@ def tar_member_sort(path: str) -> tuple[str, str]:
     return parent + "/\x00" + base, base
 
 
-def write_tar(root: pathlib.Path, out: pathlib.Path) -> None:
-    members = sorted(
-        str(p.relative_to(root)).replace("\\", "/") for p in root.rglob("*") if p.is_file()
-    )
-    members.sort(key=tar_member_sort)
+def write_tar(roots: list[pathlib.Path], out: pathlib.Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     with tarfile.open(out, "w", format=tarfile.USTAR_FORMAT) as tf:
-        for name in members:
-            info = tarfile.TarInfo(name=f"TacStackDemo/{root.name}/{name}")
-            info.size = (root / name).stat().st_size
-            info.mtime = 0
-            info.uid = info.gid = 0
-            info.uname = info.gname = ""
-            with open(root / name, "rb") as f:
-                tf.addfile(info, f)
+        for root in roots:
+            members = sorted(
+                str(p.relative_to(root)).replace("\\", "/") for p in root.rglob("*") if p.is_file()
+            )
+            members.sort(key=tar_member_sort)
+            for name in members:
+                info = tarfile.TarInfo(name=f"TacStackDemo/{root.name}/{name}")
+                info.size = (root / name).stat().st_size
+                info.mtime = 0
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+                with open(root / name, "rb") as f:
+                    tf.addfile(info, f)
 
 
 def main() -> None:
@@ -115,9 +172,11 @@ def main() -> None:
     )
     args = parser.parse_args()
     with tempfile.TemporaryDirectory() as tmp:
-        root = pathlib.Path(tmp) / "Wipe_Demo.zarr"
-        build_zarr_tree(root)
-        write_tar(root, args.out)
+        wipe = pathlib.Path(tmp) / "Wipe_Demo.zarr"
+        pick = pathlib.Path(tmp) / "task_0001_Pick_Demo.zarr"
+        build_wipe_task(wipe)
+        build_pick_task(pick)
+        write_tar([wipe, pick], args.out)
     print(f"wrote {args.out} ({args.out.stat().st_size} bytes)")
 
 

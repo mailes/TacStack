@@ -32,7 +32,7 @@ def iterate(adapter: OpenXTactileAdapter) -> list:
 
 def test_archive_lists_task_and_streams() -> None:
     with OpenXTactileArchive(FIXTURE) as archive:
-        assert archive.task_names() == ["Wipe_Demo"]
+        assert archive.task_names() == ["Wipe_Demo", "task_0001_Pick_Demo"]
         info = archive.open_task("Wipe_Demo").info()
     assert info.episodes == 3
     assert info.frames == 40
@@ -46,6 +46,41 @@ def test_archive_lists_task_and_streams() -> None:
             areas=2,
         ),
     )
+
+
+def test_archive_lists_taxel_task() -> None:
+    with OpenXTactileArchive(FIXTURE) as archive:
+        info = archive.open_task("task_0001_Pick_Demo").info()
+    assert info.episodes == 2
+    assert info.frames == 20
+    assert info.streams == (
+        TactileStreamInfo(
+            stream="left_fingertip",
+            data_key="left_tactile_data_fingertip",
+            sensor="uSkin",
+            kind="state",
+            areas=2,
+        ),
+    )
+
+
+def test_adapter_replays_taxel_stream() -> None:
+    adapter = OpenXTactileAdapter(FIXTURE, task="task_0001_Pick_Demo", episode=1)
+    frames = iterate(adapter)
+    assert len(frames) == 12
+    first = frames[0]
+    assert first.taxels is not None
+    assert first.taxels.shape == (2, 16, 3)
+    assert first.taxels.dtype == np.float32
+    assert first.tactile_image is None
+    assert first.raw["right_hand_pose"].shape == (1, 6)
+    assert first.metadata["oxt_tactile_type"] == "state"
+    assert first.metadata["oxt_tactile_areas"] == (0, 1)
+    descriptor = adapter.descriptor()
+    assert descriptor.sensor_id == "oxt:task_0001_Pick_Demo:left_fingertip"
+    assert descriptor.model == "uSkin"
+    assert descriptor.modality == "taxel"
+    assert descriptor.capabilities == frozenset({"taxel_force"})
 
 
 def test_adapter_iterates_first_episode() -> None:
@@ -180,7 +215,7 @@ def test_extracted_directory_source_matches_tar(tmp_path: Path) -> None:
         tf.extractall(extracted, filter="data")
     source = extracted / "TacStackDemo"
     with OpenXTactileArchive(source) as archive:
-        assert archive.task_names() == ["Wipe_Demo"]
+        assert archive.task_names() == ["Wipe_Demo", "task_0001_Pick_Demo"]
         frames = iterate(OpenXTactileAdapter(source, task="Wipe_Demo", episode=1))
     assert len(frames) == 15
 
