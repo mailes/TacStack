@@ -17,6 +17,7 @@ htmlcov/
 ~$*
 data/
 artifacts/
+.scratch/
 *.mcap
 *.rrd
 *.onnx

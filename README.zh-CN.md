@@ -5,9 +5,12 @@
 面向机器人应用的跨传感器触觉语义与运行时项目。保留原始触觉数据，通过统一的
 Observation、模型接口和 Event contract，逐步降低不同传感器的接入与使用成本。
 
-**当前状态：Phase 0 / 开发脚手架。** 已实现核心 dataclass、基础验证、debug JSON、
-Adapter / Model 协议和 CLI 安装验证。真实数据读取、contact/slip 检测、ONNX 推理、
-Rerun / MCAP / ROS2 集成尚未实现。当前事件示例是人工构造的，不是模型输出。
+**当前状态：Phase 0 完成 / Phase 1 数据通路已实现。** 核心 dataclass、基础验证、
+debug JSON、Adapter / Model 协议已就绪，第一条真实数据通路可用：Open-X-Tactile
+（FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一 `TactileObservation`，CLI
+可 list / inspect / convert episode，转换输出 Foxglove 可打开的 MCAP 记录。
+contact/slip 检测、ONNX 推理、Rerun / ROS2 集成和真实传感器尚未实现。仓库内置
+的数据集 fixture 是合成内容，布局镜像真实发布格式（见 `tests/fixtures/README.md`）。
 
 ## 本地开始
 
@@ -23,6 +26,16 @@ uv run python examples/contract_demo.py
 ```
 
 `contract-demo` 输出一个带 `synthetic: true` 的 JSON 事件，不下载数据、不连接硬件。
+
+同一套 Observation contract 也能回放本地 tar 或解包目录里的 Open-X-Tactile
+episode（CI 和下面的示例只使用内置合成 fixture，不下载数据）：
+
+```bash
+uv run tacstack dataset list tests/fixtures/open_x_tactile/demo_wipe.tar
+uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0
+uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0 --out demo.mcap
+uv run python examples/replay_open_x_tactile.py
+```
 
 ```python
 from tacstack import TactileEvent
@@ -42,15 +55,16 @@ sample = TactileEvent(
 ```text
 src/tacstack/
   core/           # 数据结构、基础验证、debug serialization
-  adapters/       # base 协议；OXT / MCAP / ROS2 / real_sensor 预留
+  adapters/       # base 协议；open_x_tactile 已实现（tar/zarr，Phase 1）
   runtime/        # model 协议；buffer / ONNX backend 预留
   models/         # contact / slip 预留
-  integrations/   # Rerun / MCAP / LeRobot / ROS2 预留
+  integrations/   # MCAP 导出已实现；Rerun / LeRobot / ROS2 预留
   benchmark/      # 评估工具预留
-  cli/            # version / contract-demo
-examples/         # 可运行 contract_demo，其余显式标注未实现
+  cli/            # version / contract-demo / dataset list-inspect-convert
+examples/         # 可运行 contract_demo 与 replay_open_x_tactile
 tests/            # unit / integration / fixtures
 docs/             # 架构、接口、开发路线、ADR
+scripts/          # 开发工具（fixture 生成器）
 .github/workflows/ci.yml
 ```
 
@@ -67,11 +81,10 @@ uv run pre-commit install
 
 ## 下一步
 
-1. 接入第一份 Open-X-Tactile 真实样本并记录来源与时间语义。
-2. 增加第二种模态，验证 Observation contract。
-3. 实现 Rerun 同步回放。
-4. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
-5. 接入第一块真实传感器，验证 live record / replay / inference。
+1. 增加第二种模态（taxel / force 数据集），验证 Observation contract。
+2. 实现 Rerun 同步回放。
+3. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
+4. 接入第一块真实传感器，验证 live record / replay / inference。
 
 详见 [开发路线](docs/roadmap.md)、[架构](docs/architecture.md)、
 [核心概念](docs/concepts.md)、[Adapter 指南](docs/adapters.md)、

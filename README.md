@@ -7,11 +7,14 @@ tactile data intact and layers a unified Observation, model interface and Event
 contract on top, steadily lowering the cost of bringing up and using different
 tactile sensors.
 
-**Status: Phase 0 / development scaffold.** Core dataclasses, basic validation,
-debug JSON, the Adapter / Model protocols and the CLI install check are
-implemented. Real dataset reading, contact / slip detection, ONNX inference and
-the Rerun / MCAP / ROS2 integrations are not implemented yet. The example event
-is hand-constructed, not model output.
+**Status: Phase 0 done / Phase 1 dataset path implemented.** Core dataclasses,
+basic validation, debug JSON and the Adapter / Model protocols are in place, and
+the first real data path works: the Open-X-Tactile (FTP-1) adapter reads
+tar-wrapped zarr episodes into `TactileObservation`, the CLI can list / inspect
+/ convert episodes, and conversion writes an MCAP record that Foxglove opens.
+Contact / slip detection, ONNX inference, the Rerun / ROS2 integrations and live
+sensors are not implemented yet. The bundled dataset fixture is synthetic; its
+layout mirrors the real release (see `tests/fixtures/README.md`).
 
 ## Getting started
 
@@ -29,6 +32,17 @@ uv run python examples/contract_demo.py
 
 `contract-demo` prints one JSON event flagged `synthetic: true`. It downloads no
 data and touches no hardware.
+
+The same Observation contract also replays real Open-X-Tactile episodes from a
+local tar or extracted directory (CI and the example below use only the bundled
+synthetic fixture):
+
+```bash
+uv run tacstack dataset list tests/fixtures/open_x_tactile/demo_wipe.tar
+uv run tacstack dataset inspect tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0
+uv run tacstack dataset convert tests/fixtures/open_x_tactile/demo_wipe.tar --episode 0 --out demo.mcap
+uv run python examples/replay_open_x_tactile.py
+```
 
 ```python
 from tacstack import TactileEvent
@@ -48,15 +62,16 @@ sample = TactileEvent(
 ```text
 src/tacstack/
   core/           # data structures, basic validation, debug serialization
-  adapters/       # base protocol; OXT / MCAP / ROS2 / real_sensor reserved
+  adapters/       # base protocol; open_x_tactile implemented (tar/zarr, Phase 1)
   runtime/        # model protocol; buffer / ONNX backend reserved
   models/         # contact / slip reserved
-  integrations/   # Rerun / MCAP / LeRobot / ROS2 reserved
+  integrations/   # MCAP export implemented; Rerun / LeRobot / ROS2 reserved
   benchmark/      # evaluation tooling reserved
-  cli/            # version / contract-demo
-examples/         # runnable contract_demo; the others are explicitly unimplemented
+  cli/            # version / contract-demo / dataset list-inspect-convert
+examples/         # runnable contract_demo and replay_open_x_tactile
 tests/            # unit / integration / fixtures
 docs/             # architecture, interfaces, roadmap, ADR (Chinese for now)
+scripts/          # development tools (fixture generator)
 .github/workflows/ci.yml
 ```
 
@@ -73,11 +88,10 @@ uv run pre-commit install
 
 ## Next steps
 
-1. Import the first Open-X-Tactile sample and record its source and time semantics.
-2. Add a second modality to validate the Observation contract.
-3. Implement synchronized Rerun replay.
-4. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
-5. Bring up the first real sensor and verify live record / replay / inference.
+1. Add a second modality (taxel / force dataset) to validate the Observation contract.
+2. Implement synchronized Rerun replay.
+3. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
+4. Bring up the first real sensor and verify live record / replay / inference.
 
 See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [concepts](docs/concepts.md), [adapter guide](docs/adapters.md),

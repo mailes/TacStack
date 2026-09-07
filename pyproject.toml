@@ -9,7 +9,12 @@ description = "Cross-sensor tactile contracts and semantic runtime foundations"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
-dependencies = ["numpy>=2,<3", "typer>=0.15,<1"]
+dependencies = [
+    "mcap>=1.2,<2",
+    "numpy>=2,<3",
+    "typer>=0.15,<1",
+    "zarr>=3,<4",
+]
 
 [project.urls]
 Repository = "https://github.com/mailes/TacStack"
@@ -27,14 +32,26 @@ packages = ["src/tacstack"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-exclude = [".scratch"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# typer's Option/Argument singletons in parameter defaults are its public API
+"src/tacstack/cli/*" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 files = ["src"]
+
+[[tool.mypy.overrides]]
+# mcap ships py.typed, but its layout trips mypy's module dedup on Windows
+# ("source file found twice"); we only consume its public Writer API.
+module = "mcap.*"
+follow_imports = "skip"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
