@@ -42,10 +42,12 @@ def test_invalid_latency(latency: float) -> None:
 
 
 def test_capabilities(sensor: SensorDescriptor) -> None:
-    manifest = ModelManifest("m", "0", "contact", frozenset({"taxel_force"}), 10, "python", "")
+    manifest = ModelManifest(
+        "m", "0", "contact", frozenset({"taxel_force"}), 10, "python", "models/contact-v0.onnx"
+    )
     manifest.validate_capabilities(sensor)
     incompatible = ModelManifest(
-        "m", "0", "contact", frozenset({"tactile_image"}), 10, "python", ""
+        "m", "0", "contact", frozenset({"tactile_image"}), 10, "python", "models/contact-v0.onnx"
     )
     with pytest.raises(ValueError, match="tactile_image"):
         incompatible.validate_capabilities(sensor)
@@ -68,3 +70,19 @@ def test_debug_rejects_unsupported_raw(sensor: SensorDescriptor) -> None:
 def test_calibration_provenance() -> None:
     calibration = CalibrationSpec("c0", "sensor", "identity", {"scale": 1.0})
     assert json.loads(to_debug_json(calibration))["parameters"]["scale"] == 1.0
+
+
+@pytest.mark.parametrize("artifact_uri", ["", "   "])
+def test_invalid_artifact_uri(artifact_uri: str) -> None:
+    with pytest.raises(ValueError, match="artifact_uri"):
+        ModelManifest("m", "0", "contact", frozenset(), 10, "python", artifact_uri)
+
+
+def test_event_vector_is_read_only_snapshot() -> None:
+    vector = np.array([1.0, 2.0])
+    event = TactileEvent(0, "sensor", "slip", 0.5, "model", 0.0, vector=vector)
+    vector[0] = 9.0
+    assert event.vector is not None
+    assert event.vector[0] == 1.0
+    with pytest.raises(ValueError, match="read-only"):
+        event.vector[0] = 9.0

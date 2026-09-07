@@ -19,8 +19,9 @@ class ModelManifest:
     def __post_init__(self) -> None:
         if type(self.window_ms) is not int or self.window_ms <= 0:
             raise ValueError("window_ms must be a positive Python integer")
-        if not all(x.strip() for x in (self.model_id, self.version, self.task, self.runtime)):
-            raise ValueError("model identity, task and runtime must not be empty")
+        required = (self.model_id, self.version, self.task, self.runtime, self.artifact_uri)
+        if not all(x.strip() for x in required):
+            raise ValueError("model identity, task, runtime and artifact_uri must not be empty")
 
     def validate_capabilities(self, sensor: SensorDescriptor) -> None:
         missing = self.required_capabilities - sensor.capabilities

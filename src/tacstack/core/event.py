@@ -42,3 +42,9 @@ class TactileEvent:
             raise ValueError("probability must be finite and in [0, 1]")
         if not isfinite(self.latency_ms) or self.latency_ms < 0:
             raise ValueError("latency_ms must be finite and non-negative")
+        if self.vector is not None:
+            # A frozen dataclass does not deep-freeze arrays: keep a read-only snapshot so
+            # later writes to the producer's array cannot change an already-created event.
+            snapshot = np.array(self.vector, copy=True)
+            snapshot.setflags(write=False)
+            object.__setattr__(self, "vector", snapshot)
