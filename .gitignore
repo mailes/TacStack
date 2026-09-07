@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+.DS_Store
+.env
+.env.*
+!.env.example
+.~*
+~$*
+data/
+artifacts/
+*.mcap
+*.rrd
+*.onnx
+# Original planning materials remain local; technical roadmap is in docs/plans/.
+/TacStack_*.md
+/TacStack_*.docx
+/architecture_v01.png
+/commercial_path.png
