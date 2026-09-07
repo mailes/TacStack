@@ -8,10 +8,13 @@ generated to cover both tactile payload kinds:
 
 - ``Wipe_Demo`` mirrors the VLA_touch gripper layout: a GelSightMini image
   stream (``right_tactile_data_gripper``, type ``image``).
-- ``task_0001_Pick_Demo`` mirrors the RH20TCfg7Tactile (uSkin) layout: a
-  taxel stream (``left_tactile_data_fingertip``, type ``state``, shaped
-  (T, 2, 16, 3) like RH20T's 2 fingertips x 16 taxels x 3 axes) plus a
-  ``right_hand_pose`` array as shipped by that release.
+- ``task_0001_Pick_Demo`` mirrors the RH20TCfg7Tactile layout verified in the
+  release tar (task ``task_0050_Dish_on_rack``, sensor/type strings decoded
+  from real chunks): two tactile streams — a uSkin taxel matrix
+  (``right_tactile_data_gripper``, type ``matrix``, (T, 2, 4, 4, 3) float32
+  for 2 fingertips x 4x4 taxels x 3 axes) and an ATIAxia80M20 force/torque
+  stream (``right_tactile_data_grippertorque``, type ``state``, (T, 1, 6)) —
+  plus poses, joints, base F/T and cameras as shipped.
 
 All array CONTENT is synthetic; nothing is copied from the real datasets.
 
@@ -41,13 +44,16 @@ WIPE_EPISODE_ENDS = [10, 25, 40]  # 3 episodes, 40 frames total
 WIPE_DATA_KEY = "right_tactile_data_gripper"
 WIPE_AREA_KEY = "right_tactile_area_gripper"
 
-# task_0001_Pick_Demo: FTP-1 uSkin layout (RH20TCfg7Tactile-like), taxel stream
+# task_0001_Pick_Demo: FTP-1 RH20TCfg7Tactile-like layout with the two real
+# tactile streams verified in the release tar (task_0050_Dish_on_rack):
+# a uSkin taxel matrix (type "matrix") and an ATIAxia80M20 force/torque
+# stream (type "state").
 PICK_EPISODE_ENDS = [8, 20]  # 2 episodes, 20 frames total
-PICK_DATA_KEY = "left_tactile_data_fingertip"
-PICK_AREA_KEY = "left_tactile_area_fingertip"
-PICK_SENSOR = "uSkin"
-PICK_TAXELS = 16  # RH20T fingertip tactile: 2 areas x 16 taxels x 3 axes
-PICK_AXES = 3
+PICK_USKIN_KEY = "right_tactile_data_gripper"  # (T, 2 areas, 4x4 taxels, 3 axes)
+PICK_USKIN_SENSOR = "uSkin"
+PICK_USKIN_TAXELS = 4  # 4x4 grid = 16 taxels per fingertip
+PICK_FT_KEY = "right_tactile_data_grippertorque"  # (T, 1 area, 6) F/T
+PICK_FT_SENSOR = "ATIAxia80M20"
 
 
 def synthetic_frame(frame: int, area: int, height: int, width: int) -> np.ndarray:
@@ -114,26 +120,60 @@ def build_pick_task(root: pathlib.Path) -> None:
     total = PICK_EPISODE_ENDS[-1]
     put("meta/episode_ends", np.array(PICK_EPISODE_ENDS, dtype="<i8"), (2,), compressor=None)
 
-    # (T, 2 areas, 16 taxels, 3 axes) float32, like RH20T fingertip tactile
-    axes = np.arange(total * 2 * PICK_TAXELS * PICK_AXES, dtype=np.float64) * 0.05
-    taxel = 0.5 + 0.5 * np.sin(axes).reshape(total, 2, PICK_TAXELS, PICK_AXES)
+    # (T, 2 areas, 4x4 taxels, 3 axes) float32, like RH20T's uSkin fingertips
+    axes = np.arange(total * 2 * PICK_USKIN_TAXELS**2 * 3, dtype=np.float64) * 0.05
+    uskin = 0.5 + 0.5 * np.sin(axes).reshape(total, 2, PICK_USKIN_TAXELS, PICK_USKIN_TAXELS, 3)
+    ft = np.sin(np.arange(total * 6, dtype=np.float64) * 0.3).reshape(total, 1, 6)
     camera = np.stack([synthetic_frame(t, 3, H, W) for t in range(total)])
 
     put("data/timestamps", np.arange(total, dtype="<i8"), (8,))
-    put("data/" + PICK_DATA_KEY, (taxel.astype("<f4")), (8, 2, PICK_TAXELS, PICK_AXES))
     put(
-        "data/" + PICK_AREA_KEY,
+        "data/" + PICK_USKIN_KEY,
+        uskin.astype("<f4"),
+        (8, 2, PICK_USKIN_TAXELS, PICK_USKIN_TAXELS, 3),
+    )
+    put(
+        "data/right_tactile_area_gripper",
         np.tile(np.array([0, 1], dtype="<i8"), (total, 1)),
         (8, 2),
     )
-    put("data/left_tactile_sensor_fingertip", np.full(total, PICK_SENSOR, dtype="<U8"), (8,))
-    put("data/left_tactile_type_fingertip", np.full(total, "state", dtype="<U5"), (8,))
+    put("data/right_tactile_sensor_gripper", np.full(total, PICK_USKIN_SENSOR, dtype="<U5"), (8,))
+    put("data/right_tactile_type_gripper", np.full(total, "matrix", dtype="<U6"), (8,))
+    put("data/" + PICK_FT_KEY, ft.astype("<f4"), (8, 1, 6))
+    put("data/right_tactile_area_grippertorque", np.full((total, 1), 0, dtype="<i4"), (8, 1))
+    put(
+        "data/right_tactile_sensor_grippertorque",
+        np.full(total, PICK_FT_SENSOR, dtype="<U12"),
+        (8,),
+    )
+    put("data/right_tactile_type_grippertorque", np.full(total, "state", dtype="<U5"), (8,))
     put(
         "data/right_hand_pose",
         np.sin(np.arange(total * 6, dtype=np.float64) * 0.2).reshape(total, 1, 6).astype("<f4"),
         (8, 1, 6),
     )
+    put(
+        "data/right_wrist_pose",
+        np.cos(np.arange(total * 6, dtype=np.float64) * 0.2).reshape(total, 6).astype("<f4"),
+        (8, 6),
+    )
+    put(
+        "data/robot_joint",
+        np.sin(np.arange(total * 21, dtype=np.float64) * 0.1).reshape(total, 21).astype("<f4"),
+        (8, 21),
+    )
+    put(
+        "data/robot_ft_base",
+        np.cos(np.arange(total * 6, dtype=np.float64) * 0.1).reshape(total, 6).astype("<f4"),
+        (8, 6),
+    )
+    put(
+        "data/gripper_width_m",
+        np.linspace(0.0, 0.08, total, dtype="<f4").reshape(total, 1),
+        (8, 1),
+    )
     put("data/right_wrist_camera_rgb", camera, (8, H, W, 3))
+    put("data/camera_main_rgb", np.roll(camera, 1, axis=0), (8, H, W, 3))
     put("data/sub_task_instruction", np.full(total, "pick up the dish", dtype="<U16"), (8,))
 
 

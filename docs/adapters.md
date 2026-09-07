@@ -17,10 +17,19 @@ HTTP 流式读取不在 v0.1 范围。
 - 任务与 episode：`meta/episode_ends`（int64 累计帧号）划分 episode；
   `data/*` 为 time-major 数组（首维 T = 总帧数）。
 - 触觉流命名约定：`<side>_tactile_data_<group>` 及 `_sensor_ / _type_ / _area_`
-  兄弟数组；`type=image` 映射到 `tactile_image`（GelSight 类，如 VLA_touch 的
-  `right_tactile_data_gripper`），`type=state` 映射到 `taxels`（uSkin 类，如
-  RH20TCfg7Tactile 的指尖触觉，真实形状为 (T, 2 areas, 16 taxels, 3 axes)）。
-  两种负载用同一个 `for observation in adapter` 读取，schema 不偏向任何一种模态。
+  兄弟数组；`type=image` 映射到 `tactile_image`；其余类型（`state`、`matrix`、
+  `binary`）映射到 `taxels`。两种负载用同一个 `for observation in adapter`
+  读取，schema 不偏向任何一种模态。
+- 已对照真实发布验证（RH20TCfg7Tactile，task `task_0050_Dish_on_rack`，
+  数组元数据与 sensor/type 字符串均从发布 tar 解码）：同一 task 内并存两个
+  触觉流 —— uSkin 税兵阵列 `right_tactile_data_gripper`，type 为 **`matrix`**
+  （官方 README 只记载 state/binary/image，matrix 是实测出的第四种类型），
+  形状 (T, 2 areas, 4×4 taxels, 3 axes) float32（对应 RH20T 官方文档的
+  2 指尖 × 16 taxel × 3 轴）；ATIAxia80M20 六轴力扭矩
+  `right_tactile_data_grippertorque`，type `state`，形状 (T, 1, 6)。
+  力扭矩的语义解释（如映射到 `wrench`）待有标定信息后另做决策，当前按
+  state 原样进 `taxels`。非触觉的状态数组（`robot_joint`、`robot_ft_base`、
+  `gripper_width_m` 等）自动进入 `raw`。
 - RH20TCfg7Tactile 发布为分卷 tar（`*.tar.part-0000/0001/0002`）：按官方说明
   先拼接为单个 tar 再交给本适配器（`cat parts > full.tar`），适配器不感知分卷。
 - 时间戳：FTP-1 的 `timestamps` 是帧序号（官方 parser 用 `arange` 合成），没有

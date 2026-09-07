@@ -19,7 +19,8 @@ def test_dataset_list() -> None:
     assert "Wipe_Demo: episodes=3 frames=40" in result.output
     assert "right_gripper(GelSightMini,image,x2)" in result.output
     assert "task_0001_Pick_Demo: episodes=2 frames=20" in result.output
-    assert "left_fingertip(uSkin,state,x2)" in result.output
+    assert "right_gripper(uSkin,matrix,x2)" in result.output
+    assert "right_grippertorque(ATIAxia80M20,state,x1)" in result.output
 
 
 def test_dataset_inspect_prints_descriptor_and_first_frame() -> None:
@@ -96,6 +97,8 @@ def test_dataset_convert_taxel_episode(tmp_path: Path) -> None:
             str(FIXTURE),
             "--task",
             "task_0001_Pick_Demo",
+            "--stream",
+            "right_gripper",
             "--episode",
             "0",
             "--out",
@@ -108,8 +111,8 @@ def test_dataset_convert_taxel_episode(tmp_path: Path) -> None:
         records = [
             json.loads(message.data) for _, _, message in make_reader(stream).iter_messages()
         ]
-    assert records[0]["taxels"]["shape"] == [2, 16, 3]
+    assert records[0]["taxels"]["shape"] == [2, 4, 4, 3]
     assert records[0]["taxels"]["dtype"] == "float32"
     assert records[0]["tactile_image"] is None
-    assert records[0]["raw"]["right_hand_pose"] is not None
+    assert records[0]["raw"]["robot_ft_base"] is not None
     assert records[0]["sensor"]["model"] == "uSkin"

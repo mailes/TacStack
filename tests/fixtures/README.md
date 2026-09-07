@@ -20,12 +20,17 @@ The current contract tests use explicitly synthetic arrays, not real tactile dat
 - 流：`right_gripper`（GelSightMini，type=image，2 areas，(T, 2, 32, 32, 3) uint8）。
 - 3 个 episode（累计帧号边界 10 / 25 / 40）。
 
-### task_0001_Pick_Demo（taxel 流，镜像 RH20TCfg7Tactile / uSkin 布局）
+### task_0001_Pick_Demo（taxel 流，镜像 RH20TCfg7Tactile 布局）
 
-- 流：`left_fingertip`（uSkin，type=state，(T, 2, 16, 3) float32 —— 对应 RH20T
-  官方文档的 2 指尖 × 16 taxel × 3 轴指尖触觉），另有 `right_hand_pose (T,1,6)`
-  与 `right_wrist_camera_rgb`，与真实发布一致。
-- 2 个 episode（累计帧号边界 8 / 20）。
+- 镜像真实 task `task_0050_Dish_on_rack` 的数组清单（数组元数据与
+  sensor/type 字符串均已对照发布 tar 验证）：两个触觉流 —— `right_gripper`
+  （uSkin，type=**matrix**，(T, 2, 4, 4, 3) float32，对应 RH20T 官方文档的
+  2 指尖 × 4×4 taxel × 3 轴）与 `right_grippertorque`（ATIAxia80M20 六轴
+  力扭矩，type=state，(T, 1, 6)）；另有 `right_hand_pose (T,1,6)`、
+  `right_wrist_pose (T,6)`、`robot_joint (T,21)`、`robot_ft_base (T,6)`、
+  `gripper_width_m`、两路 224 类相机与 `sub_task_instruction`（fixture 相机
+  分辨率仍为 32×32）。
+- 2 个 episode（累计帧号边界 8 / 20）；task 内多流，回放需显式指定 stream。
 
 ### 通用
 
@@ -33,8 +38,8 @@ The current contract tests use explicitly synthetic arrays, not real tactile dat
 - 真实数据抽查（手动，不进 CI）：2026-09-07 用 zarr 3.3 对照 `VLA_touch.tar`
   前 1 GB 验证了相同布局与压缩格式的读取（224×224×3 uint8 相机块与 `<U5`
   字符串数组解码正确；`Wipe_Manipulation.zarr` 61 episodes / 6421 帧）；同日
-  对照 `RH20TCfg7Tactile.tar.part-0000` 前 2.5 GB 确认了 task 命名
-  （`task_0050_Dish_on_rack.zarr`）、`meta/episode_ends`、`right_hand_pose`
-  与相机数组的形状/压缩（uSkin 触觉数组名见 adapters.md 待确认项）。
+  通过对 `RH20TCfg7Tactile.tar.part-0000` 的 tar 头部遍历确认了
+  `task_0050_Dish_on_rack` 的完整数组清单（上节列出的键名、形状、dtype 与
+  blosc/zstd 压缩全部来自该遍历）。
 - 许可：合成内容，随 Apache-2.0 仓库分发无障碍。真实数据集的重分发需先确认
   许可（OXT 索引当前没有 license 字段）。

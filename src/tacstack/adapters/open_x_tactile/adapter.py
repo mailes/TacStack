@@ -119,9 +119,14 @@ class OpenXTactileAdapter:
         )
 
     def _build_descriptor(self, stream: TactileStreamInfo) -> SensorDescriptor:
-        modality = {"image": "vision_tactile", "state": "taxel", "binary": "taxel"}.get(
-            stream.kind, stream.kind
-        )
+        # "matrix" is a 2D taxel grid (verified in RH20TCfg7Tactile); it and the
+        # other non-image kinds all replay through the taxels payload
+        modality = {
+            "image": "vision_tactile",
+            "state": "taxel",
+            "binary": "taxel",
+            "matrix": "taxel",
+        }.get(stream.kind, stream.kind)
         capabilities = {"tactile_image"} if stream.kind == "image" else {"taxel_force"}
         return SensorDescriptor(
             sensor_id=f"oxt:{self._task_name}:{stream.stream}",

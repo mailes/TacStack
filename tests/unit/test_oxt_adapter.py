@@ -55,32 +55,56 @@ def test_archive_lists_taxel_task() -> None:
     assert info.frames == 20
     assert info.streams == (
         TactileStreamInfo(
-            stream="left_fingertip",
-            data_key="left_tactile_data_fingertip",
+            stream="right_gripper",
+            data_key="right_tactile_data_gripper",
             sensor="uSkin",
-            kind="state",
+            kind="matrix",
             areas=2,
+        ),
+        TactileStreamInfo(
+            stream="right_grippertorque",
+            data_key="right_tactile_data_grippertorque",
+            sensor="ATIAxia80M20",
+            kind="state",
+            areas=1,
         ),
     )
 
 
 def test_adapter_replays_taxel_stream() -> None:
-    adapter = OpenXTactileAdapter(FIXTURE, task="task_0001_Pick_Demo", episode=1)
+    adapter = OpenXTactileAdapter(
+        FIXTURE, task="task_0001_Pick_Demo", episode=1, stream="right_gripper"
+    )
     frames = iterate(adapter)
     assert len(frames) == 12
     first = frames[0]
     assert first.taxels is not None
-    assert first.taxels.shape == (2, 16, 3)
+    assert first.taxels.shape == (2, 4, 4, 3)
     assert first.taxels.dtype == np.float32
     assert first.tactile_image is None
-    assert first.raw["right_hand_pose"].shape == (1, 6)
-    assert first.metadata["oxt_tactile_type"] == "state"
+    assert first.raw["robot_joint"].shape == (21,)
+    assert first.raw["robot_ft_base"].shape == (6,)
+    assert first.metadata["oxt_tactile_type"] == "matrix"
     assert first.metadata["oxt_tactile_areas"] == (0, 1)
     descriptor = adapter.descriptor()
-    assert descriptor.sensor_id == "oxt:task_0001_Pick_Demo:left_fingertip"
+    assert descriptor.sensor_id == "oxt:task_0001_Pick_Demo:right_gripper"
     assert descriptor.model == "uSkin"
     assert descriptor.modality == "taxel"
     assert descriptor.capabilities == frozenset({"taxel_force"})
+
+
+def test_adapter_replays_force_torque_stream() -> None:
+    adapter = OpenXTactileAdapter(
+        FIXTURE, task="task_0001_Pick_Demo", episode=0, stream="right_grippertorque"
+    )
+    frames = iterate(adapter)
+    assert len(frames) == 8
+    assert frames[0].taxels is not None
+    assert frames[0].taxels.shape == (1, 6)
+    assert frames[0].metadata["oxt_tactile_areas"] == (0,)
+    descriptor = adapter.descriptor()
+    assert descriptor.model == "ATIAxia80M20"
+    assert descriptor.modality == "taxel"
 
 
 def test_adapter_iterates_first_episode() -> None:
