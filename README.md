@@ -1,15 +1,22 @@
 # TacStack
 
-面向机器人应用的跨传感器触觉语义与运行时项目。保留原始触觉数据，通过统一的
-Observation、模型接口和 Event contract，逐步降低不同传感器的接入与使用成本。
+English | [简体中文](README.zh-CN.md)
 
-**当前状态：Phase 0 / 开发脚手架。** 已实现核心 dataclass、基础验证、debug JSON、
-Adapter / Model 协议和 CLI 安装验证。真实数据读取、contact/slip 检测、ONNX 推理、
-Rerun / MCAP / ROS2 集成尚未实现。当前事件示例是人工构造的，不是模型输出。
+Cross-sensor tactile semantics and runtime for robotics. TacStack keeps raw
+tactile data intact and layers a unified Observation, model interface and Event
+contract on top, steadily lowering the cost of bringing up and using different
+tactile sensors.
 
-## 本地开始
+**Status: Phase 0 / development scaffold.** Core dataclasses, basic validation,
+debug JSON, the Adapter / Model protocols and the CLI install check are
+implemented. Real dataset reading, contact / slip detection, ONNX inference and
+the Rerun / MCAP / ROS2 integrations are not implemented yet. The example event
+is hand-constructed, not model output.
 
-需要 Python 3.12+ 和 [uv](https://docs.astral.sh/uv/)。目前从源码安装，尚未发布 PyPI 包。
+## Getting started
+
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). Install from source
+for now; no PyPI package yet.
 
 ```bash
 git clone https://github.com/mailes/TacStack.git
@@ -20,7 +27,8 @@ uv run tacstack contract-demo
 uv run python examples/contract_demo.py
 ```
 
-`contract-demo` 输出一个带 `synthetic: true` 的 JSON 事件，不下载数据、不连接硬件。
+`contract-demo` prints one JSON event flagged `synthetic: true`. It downloads no
+data and touches no hardware.
 
 ```python
 from tacstack import TactileEvent
@@ -35,24 +43,24 @@ sample = TactileEvent(
 )
 ```
 
-## 项目结构
+## Project layout
 
 ```text
 src/tacstack/
-  core/           # 数据结构、基础验证、debug serialization
-  adapters/       # base 协议；OXT / MCAP / ROS2 / real_sensor 预留
-  runtime/        # model 协议；buffer / ONNX backend 预留
-  models/         # contact / slip 预留
-  integrations/   # Rerun / MCAP / LeRobot / ROS2 预留
-  benchmark/      # 评估工具预留
+  core/           # data structures, basic validation, debug serialization
+  adapters/       # base protocol; OXT / MCAP / ROS2 / real_sensor reserved
+  runtime/        # model protocol; buffer / ONNX backend reserved
+  models/         # contact / slip reserved
+  integrations/   # Rerun / MCAP / LeRobot / ROS2 reserved
+  benchmark/      # evaluation tooling reserved
   cli/            # version / contract-demo
-examples/         # 可运行 contract_demo，其余显式标注未实现
+examples/         # runnable contract_demo; the others are explicitly unimplemented
 tests/            # unit / integration / fixtures
-docs/             # 架构、接口、开发路线、ADR
+docs/             # architecture, interfaces, roadmap, ADR (Chinese for now)
 .github/workflows/ci.yml
 ```
 
-## 开发检查
+## Development checks
 
 ```bash
 uv run ruff check .
@@ -63,21 +71,25 @@ uv build
 uv run pre-commit install
 ```
 
-## 下一步
+## Next steps
 
-1. 接入第一份 Open-X-Tactile 真实样本并记录来源与时间语义。
-2. 增加第二种模态，验证 Observation contract。
-3. 实现 Rerun 同步回放。
-4. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
-5. 接入第一块真实传感器，验证 live record / replay / inference。
+1. Import the first Open-X-Tactile sample and record its source and time semantics.
+2. Add a second modality to validate the Observation contract.
+3. Implement synchronized Rerun replay.
+4. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
+5. Bring up the first real sensor and verify live record / replay / inference.
 
-详见 [开发路线](docs/roadmap.md)、[架构](docs/architecture.md)、
-[核心概念](docs/concepts.md)、[Adapter 指南](docs/adapters.md)、
-[Runtime](docs/runtime.md)、[Benchmark](docs/benchmark.md) 和 [贡献指南](CONTRIBUTING.md)。
+See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
+[concepts](docs/concepts.md), [adapter guide](docs/adapters.md),
+[runtime](docs/runtime.md), [benchmark](docs/benchmark.md) and the
+[contribution guide](CONTRIBUTING.md). Most of these docs are Chinese for now;
+English translations will follow before the v0.1 release.
 
-## 原则与许可
+## Principles and license
 
-Raw-first · Semantics-first · Edge-first · Integration-first。
-Core 不依赖 ROS2、云服务或训练框架；复用现有存储和可视化生态。
+Raw-first · Semantics-first · Edge-first · Integration-first.
+Core depends on neither ROS2, cloud services nor training frameworks; reuse the
+existing storage and visualization ecosystems.
 
-Apache-2.0，见 [LICENSE](LICENSE)。数据集、模型及第三方 SDK 的许可需分别核实。
+Apache-2.0, see [LICENSE](LICENSE). Dataset, model and third-party SDK licenses
+must be verified separately.
