@@ -1,6 +1,7 @@
 """TacStack CLI: contract demos plus Open-X-Tactile dataset tooling."""
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -10,9 +11,12 @@ from tacstack import __version__
 from tacstack.adapters.base import observations
 from tacstack.adapters.open_x_tactile import OpenXTactileAdapter, OpenXTactileArchive
 from tacstack.annotations import SCHEMA_VERSION, AnnotationLog, TactileMark, normalize_mark, now_ns
-from tacstack.core import TactileEvent
+from tacstack.benchmark import benchmark_episodes
+from tacstack.core import TactileEvent, TactileObservation
 from tacstack.core.serialization import to_debug_json
 from tacstack.integrations.mcap import observation_record, write_episode_mcap
+from tacstack.models import builtin_model
+from tacstack.runtime.pipeline import Runtime
 
 app = typer.Typer(no_args_is_help=True, help="TacStack tactile contracts (development scaffold).")
 dataset_app = typer.Typer(
@@ -21,6 +25,8 @@ dataset_app = typer.Typer(
 app.add_typer(dataset_app, name="dataset")
 annotate_app = typer.Typer(no_args_is_help=True, help="C/S/U marks stored as Parquet.")
 app.add_typer(annotate_app, name="annotate")
+model_app = typer.Typer(no_args_is_help=True, help="Run built-in models over OXT episodes.")
+app.add_typer(model_app, name="model")
 
 
 @app.command()
@@ -332,6 +338,170 @@ def annotate_show(
             f"t={mark.timestamp_ns}ns) by {mark.user}"
         )
     typer.echo(f"{len(log)} marks, schema {SCHEMA_VERSION}")
+
+
+_BUILTIN_MODELS = ("contact", "slip")
+
+
+def _model_params(
+    name: str,
+    on_threshold: float | None,
+    off_threshold: float | None,
+    micro_threshold: float | None,
+    slip_threshold: float | None,
+    center: float | None,
+    gain: float | None,
+) -> dict[str, float]:
+    if name not in _BUILTIN_MODELS:
+        _fail(ValueError(f"unknown model {name!r}; available: {', '.join(_BUILTIN_MODELS)}"))
+    params: dict[str, float] = {}
+    if name == "contact":
+        if on_threshold is not None:
+            params["on_threshold"] = on_threshold
+        if off_threshold is not None:
+            params["off_threshold"] = off_threshold
+    else:
+        if micro_threshold is not None:
+            params["micro_threshold"] = micro_threshold
+        if slip_threshold is not None:
+            params["slip_threshold"] = slip_threshold
+    if center is not None:
+        params["center"] = center
+    if gain is not None:
+        params["gain"] = gain
+    return params
+
+
+def _default_window(name: str) -> int:
+    return 1 if name == "contact" else 2
+
+
+def _count_kinds(events: list[TactileEvent]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for event in events:
+        counts[event.kind] = counts.get(event.kind, 0) + 1
+    return counts
+
+
+@model_app.command("run")
+def model_run(
+    name: str = typer.Argument(..., help="Built-in model: contact or slip."),
+    source: Path = typer.Argument(
+        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+    ),
+    task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
+    episode: int = typer.Option(0, min=0, help="Episode index."),
+    stream: str | None = typer.Option(
+        None, help="Tactile stream name; optional when the task has one."
+    ),
+    rate_hz: float | None = typer.Option(
+        None, help="Assumed frame rate; converts index timestamps to ns."
+    ),
+    window: int | None = typer.Option(
+        None, min=1, help="Window frames; defaults to 1 for contact, 2 for slip."
+    ),
+    on_threshold: float | None = typer.Option(None, help="Contact: begin threshold."),
+    off_threshold: float | None = typer.Option(None, help="Contact: end threshold."),
+    micro_threshold: float | None = typer.Option(None, help="Slip: micro_slip threshold."),
+    slip_threshold: float | None = typer.Option(None, help="Slip: slip threshold."),
+    center: float | None = typer.Option(None, help="Logistic center for the score."),
+    gain: float | None = typer.Option(None, help="Logistic gain for the score."),
+    out: Path | None = typer.Option(
+        None, help="Write all events as a JSON array to this path instead of stdout."
+    ),
+) -> None:
+    """Run a built-in model over one episode and emit TactileEvents."""
+    params = _model_params(
+        name, on_threshold, off_threshold, micro_threshold, slip_threshold, center, gain
+    )
+    try:
+        model = builtin_model(name, **params)
+    except (KeyError, TypeError, ValueError) as error:
+        _fail(error)
+    window_frames = window if window is not None else _default_window(name)
+    runtime = Runtime(model, window_frames=window_frames)
+    adapter = _open_episode_adapter(source, task, episode, stream, rate_hz)
+    events: list[TactileEvent] = []
+    frames = 0
+    try:
+        for observation in observations(adapter):
+            frames += 1
+            events.extend(runtime.process(observation))
+    finally:
+        adapter.close()
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(to_debug_json(events) + "\n", encoding="utf-8")
+        typer.echo(f"wrote {len(events)} events from {frames} frames to {out}")
+    else:
+        for event in events:
+            typer.echo(to_debug_json(event))
+        typer.echo(
+            f"summary: {frames} frames, {len(events)} events {_count_kinds(events)} "
+            f"(window={window_frames})"
+        )
+
+
+@app.command("benchmark")
+def benchmark_cmd(
+    name: str = typer.Argument(..., help="Built-in model: contact or slip."),
+    source: Path = typer.Argument(
+        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+    ),
+    task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
+    stream: str | None = typer.Option(
+        None, help="Tactile stream name; optional when the task has one."
+    ),
+    window: int | None = typer.Option(
+        None, min=1, help="Window frames; defaults to 1 for contact, 2 for slip."
+    ),
+    on_threshold: float | None = typer.Option(None, help="Contact: begin threshold."),
+    off_threshold: float | None = typer.Option(None, help="Contact: end threshold."),
+    micro_threshold: float | None = typer.Option(None, help="Slip: micro_slip threshold."),
+    slip_threshold: float | None = typer.Option(None, help="Slip: slip threshold."),
+    center: float | None = typer.Option(None, help="Logistic center for the score."),
+    gain: float | None = typer.Option(None, help="Logistic gain for the score."),
+    out: Path | None = typer.Option(None, help="Write the JSON report to this path."),
+) -> None:
+    """Run a built-in model over every episode of a task; deterministic report."""
+    params = _model_params(
+        name, on_threshold, off_threshold, micro_threshold, slip_threshold, center, gain
+    )
+    try:
+        model = builtin_model(name, **params)
+    except (KeyError, TypeError, ValueError) as error:
+        _fail(error)
+    window_frames = window if window is not None else _default_window(name)
+    try:
+        with OpenXTactileArchive(source) as archive:
+            resolved_task = _resolve_task(archive, task)
+            episode_count = archive.open_task(resolved_task).info().episodes
+    except (KeyError, OSError, ValueError) as error:
+        _fail(error)
+
+    def episode_streams() -> Iterator[tuple[int, Iterator[TactileObservation]]]:
+        for index in range(episode_count):
+            adapter = _open_episode_adapter(source, resolved_task, index, stream, None)
+            try:
+                yield index, observations(adapter)
+            finally:
+                adapter.close()
+
+    report = benchmark_episodes(model, episode_streams(), window_frames=window_frames)
+    report["task"] = resolved_task
+    report["parameters"] = params
+    payload = to_debug_json(report)
+    totals = report["totals"]
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(payload + "\n", encoding="utf-8")
+        typer.echo(f"wrote report to {out}")
+    else:
+        typer.echo(payload)
+    typer.echo(
+        f"summary: {totals['episodes']} episodes, {totals['frames']} frames, "
+        f"{totals['events']} events {totals['counts']} (window={window_frames})"
+    )
 
 
 if __name__ == "__main__":

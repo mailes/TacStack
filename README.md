@@ -7,7 +7,7 @@ tactile data intact and layers a unified Observation, model interface and Event
 contract on top, steadily lowering the cost of bringing up and using different
 tactile sensors.
 
-**Status: Phase 1 done / Phase 2 done (demo video pending).** Core dataclasses,
+**Status: Phase 2 done / Phase 3 runtime in progress.** Core dataclasses,
 basic validation, debug JSON and the Adapter / Model protocols are in place, and
 the first real data path works: the Open-X-Tactile (FTP-1) adapter reads
 tar-wrapped zarr episodes into `TactileObservation` for both payload kinds —
@@ -16,9 +16,13 @@ ATIAxia80M20 force/torque) — the CLI can list / inspect / convert episodes,
 conversion writes an MCAP record that Foxglove opens, `tacstack replay` writes
 a synchronized Rerun recording, and `tacstack annotate` stores C / S / U marks
 as Parquet that replay puts back on the timeline (`rerun` / `annotate` are
-opt-in extras). Contact / slip detection, ONNX inference, the ROS2 integration
-and live sensors are not implemented yet. The bundled dataset fixture is
-synthetic; its layout mirrors the real releases (see `tests/fixtures/README.md`).
+opt-in extras). The Phase 3 runtime core works: `for event in
+runtime.events(...)` drives built-in heuristic contact / slip baselines
+(deterministic threshold models — not learned; ONNX backend pending), and
+`tacstack benchmark` produces reproducible per-episode reports. The ROS2
+integration and live sensors are not implemented yet. The bundled dataset
+fixture is synthetic; its layout mirrors the real releases (see
+`tests/fixtures/README.md`).
 
 ## Getting started
 
@@ -71,7 +75,7 @@ src/tacstack/
   models/         # contact / slip reserved
   integrations/   # MCAP export + Rerun replay implemented; LeRobot / ROS2 reserved
   benchmark/      # evaluation tooling reserved
-  cli/            # version / contract-demo / dataset list-inspect-convert / replay / annotate
+  cli/            # version / contract-demo / dataset / replay / annotate / model run / benchmark
 examples/         # runnable contract_demo and replay_open_x_tactile
 tests/            # unit / integration / fixtures
 docs/             # architecture, interfaces, roadmap, ADR (Chinese for now)
@@ -92,7 +96,7 @@ uv run pre-commit install
 
 ## Next steps
 
-1. Add contact and temporal slip baselines, ONNX and reproducible evaluation (Phase 3).
+1. Export the baselines to ONNX and add an onnxruntime inference backend (Phase 3).
 2. Bring up the first real sensor and verify live record / replay / inference.
 
 See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
