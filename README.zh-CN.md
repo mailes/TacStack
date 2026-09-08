@@ -12,8 +12,9 @@ debug JSON、Adapter / Model 协议已就绪，第一条真实数据通路可用
 力扭矩）；CLI 可 list / inspect / convert episode，转换输出 Foxglove 可打开的
 MCAP 记录，`tacstack replay` 输出同步时间轴的 Rerun 录制，`tacstack annotate`
 把 C/S/U 标记存为 Parquet 并可回放到时间轴（`rerun` / `annotate` 为可选依赖）。
-Phase 3 runtime 核心已通：`for event in runtime.events(...)` 驱动内置启发式
-contact / slip baseline（确定性阈值模型，非学习模型；ONNX 后端待做），
+Phase 3 已完成：`for event in runtime.events(...)` 驱动内置启发式
+contact / slip baseline，同时支持 builtin 打分与 ONNX 打分工件
+（onnxruntime 后端，工件与 manifest 分离；确定性阈值模型，非学习模型），
 `tacstack benchmark` 输出可复现的逐 episode 报告。ROS2 集成和真实传感器尚未实现。
 仓库内置的数据集 fixture 是合成内容，布局镜像真实发布格式（见
 `tests/fixtures/README.md`）。
@@ -87,7 +88,7 @@ uv run pre-commit install
 
 ## 下一步
 
-1. baseline 导出 ONNX 并提供 onnxruntime 推理后端（Phase 3）。
+1. 跨传感器标定、质量追踪与基于标注数据的评估（Phase 4）。
 2. 接入第一块真实传感器，验证 live record / replay / inference。
 
 详见 [开发路线](docs/roadmap.md)、[架构](docs/architecture.md)、

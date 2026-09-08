@@ -29,6 +29,34 @@ def contact_baseline_manifest() -> ModelManifest:
     )
 
 
+class ContactHysteresis:
+    """Rising/falling threshold state machine; edge-triggered transitions.
+
+    Shared by the builtin logistic scorer and the ONNX backend so both emit
+    exactly the same event sequence for the same score sequence.
+    """
+
+    def __init__(self, *, on_threshold: float = 0.6, off_threshold: float = 0.4) -> None:
+        if not 0 < off_threshold < on_threshold <= 1:
+            raise ValueError(
+                "thresholds must satisfy 0 < off_threshold < on_threshold <= 1; "
+                f"got off={off_threshold}, on={on_threshold}"
+            )
+        self._on = on_threshold
+        self._off = off_threshold
+        self._in_contact = False
+
+    def update(self, probability: float) -> EventKind | None:
+        """Feed one score; return the transition kind or None when silent."""
+        if not self._in_contact and probability >= self._on:
+            self._in_contact = True
+            return "contact_begin"
+        if self._in_contact and probability <= self._off:
+            self._in_contact = False
+            return "contact_end"
+        return None
+
+
 class ContactBaseline:
     """Logistic activity score with a hysteresis state machine.
 
@@ -59,6 +87,7 @@ class ContactBaseline:
         self._off = off_threshold
         self._center = center
         self._gain = gain
+        self._hysteresis = ContactHysteresis(on_threshold=on_threshold, off_threshold=off_threshold)
         self._manifest = ModelManifest(
             model_id=model_id,
             version="0.1.0",
@@ -68,7 +97,6 @@ class ContactBaseline:
             runtime="builtin",
             artifact_uri=f"builtin://tacstack/{model_id}",
         )
-        self._in_contact = False
 
     @property
     def manifest(self) -> ModelManifest:
@@ -94,12 +122,9 @@ class ContactBaseline:
             "oxt_frame_index": observation.metadata.get("oxt_frame_index"),
         }
         events: list[TactileEvent] = []
-        if not self._in_contact and probability >= self._on:
-            self._in_contact = True
-            events.append(self._event(observation, "contact_begin", probability, metadata, started))
-        elif self._in_contact and probability <= self._off:
-            self._in_contact = False
-            events.append(self._event(observation, "contact_end", probability, metadata, started))
+        kind = self._hysteresis.update(probability)
+        if kind is not None:
+            events.append(self._event(observation, kind, probability, metadata, started))
         return events
 
     def _event(

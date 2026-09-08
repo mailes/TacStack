@@ -32,6 +32,38 @@ def slip_baseline_manifest() -> ModelManifest:
     )
 
 
+class SlipEdgeTracker:
+    """Rising-edge tracker over the micro / slip thresholds.
+
+    Shared by the builtin frame-difference scorer and the ONNX backend so
+    both emit exactly the same event sequence for the same score sequence.
+    """
+
+    def __init__(self, *, micro_threshold: float = 0.4, slip_threshold: float = 0.7) -> None:
+        if not 0 < micro_threshold < slip_threshold <= 1:
+            raise ValueError(
+                "thresholds must satisfy 0 < micro_threshold < slip_threshold <= 1; "
+                f"got micro={micro_threshold}, slip={slip_threshold}"
+            )
+        self._micro = micro_threshold
+        self._slip = slip_threshold
+        self._above_micro = False
+        self._above_slip = False
+
+    def update(self, probability: float) -> EventKind | None:
+        """Feed one score; return the crossing kind or None when silent."""
+        above_micro = probability >= self._micro
+        above_slip = probability >= self._slip
+        kind: EventKind | None = None
+        if above_slip and not self._above_slip:
+            kind = "slip"
+        elif above_micro and not self._above_micro:
+            kind = "micro_slip"
+        self._above_micro = above_micro
+        self._above_slip = above_slip
+        return kind
+
+
 class SlipBaseline:
     """Frame-difference score with rising-edge event emission.
 
@@ -61,6 +93,9 @@ class SlipBaseline:
         self._slip = slip_threshold
         self._center = center
         self._gain = gain
+        self._tracker = SlipEdgeTracker(
+            micro_threshold=micro_threshold, slip_threshold=slip_threshold
+        )
         self._manifest = ModelManifest(
             model_id=model_id,
             version="0.1.0",
@@ -70,8 +105,6 @@ class SlipBaseline:
             runtime="builtin",
             artifact_uri=f"builtin://tacstack/{model_id}",
         )
-        self._above_micro = False
-        self._above_slip = False
 
     @property
     def manifest(self) -> ModelManifest:
@@ -99,8 +132,6 @@ class SlipBaseline:
         previous, current = window[-2], window[-1]
         started = perf_counter()
         diff, probability = self._diff_score(previous, current)
-        above_micro = probability >= self._micro
-        above_slip = probability >= self._slip
         metadata = {
             "diff_value": diff,
             "micro_threshold": self._micro,
@@ -108,11 +139,7 @@ class SlipBaseline:
             "oxt_frame_index": current.metadata.get("oxt_frame_index"),
         }
         events: list[TactileEvent] = []
-        kind: EventKind | None = None
-        if above_slip and not self._above_slip:
-            kind = "slip"
-        elif above_micro and not self._above_micro:
-            kind = "micro_slip"
+        kind = self._tracker.update(probability)
         if kind is not None:
             events.append(
                 TactileEvent(
@@ -126,6 +153,4 @@ class SlipBaseline:
                     metadata=metadata,
                 )
             )
-        self._above_micro = above_micro
-        self._above_slip = above_slip
         return events

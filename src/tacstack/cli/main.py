@@ -376,6 +376,43 @@ def _default_window(name: str) -> int:
     return 1 if name == "contact" else 2
 
 
+def _build_model(
+    name: str,
+    params: dict[str, Any],
+    artifact: Path | None,
+    model_id: str | None,
+) -> Any:
+    """Build the builtin model, or the ONNX backend when --artifact is given."""
+    if artifact is None:
+        if model_id is not None:
+            params["model_id"] = model_id
+        try:
+            return builtin_model(name, **params)
+        except (KeyError, TypeError, ValueError) as error:
+            _fail(error)
+    try:
+        from tacstack.runtime.onnx_backend import OnnxContactModel, OnnxSlipModel
+    except ImportError as error:  # pragma: no cover - depends on optional extra
+        _fail(RuntimeError(f"onnxruntime is not installed; run: uv sync --extra onnx ({error})"))
+    resolved_id = model_id or f"{name}-onnx"
+    try:
+        if name == "contact":
+            return OnnxContactModel(
+                artifact,
+                on_threshold=params.get("on_threshold", 0.6),
+                off_threshold=params.get("off_threshold", 0.4),
+                model_id=resolved_id,
+            )
+        return OnnxSlipModel(
+            artifact,
+            micro_threshold=params.get("micro_threshold", 0.4),
+            slip_threshold=params.get("slip_threshold", 0.7),
+            model_id=resolved_id,
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as error:
+        _fail(error)
+
+
 def _count_kinds(events: list[TactileEvent]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for event in events:
@@ -409,15 +446,20 @@ def model_run(
     out: Path | None = typer.Option(
         None, help="Write all events as a JSON array to this path instead of stdout."
     ),
+    artifact: Path | None = typer.Option(
+        None, "--artifact", help="ONNX scoring artifact; switches to the onnxruntime backend."
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Override the recorded model_id."),
 ) -> None:
     """Run a built-in model over one episode and emit TactileEvents."""
     params = _model_params(
         name, on_threshold, off_threshold, micro_threshold, slip_threshold, center, gain
     )
-    try:
-        model = builtin_model(name, **params)
-    except (KeyError, TypeError, ValueError) as error:
-        _fail(error)
+    if artifact is not None:
+        # the logistic center/gain are baked into the artifact at export time
+        params.pop("center", None)
+        params.pop("gain", None)
+    model = _build_model(name, params, artifact, model_id)
     window_frames = window if window is not None else _default_window(name)
     runtime = Runtime(model, window_frames=window_frames)
     adapter = _open_episode_adapter(source, task, episode, stream, rate_hz)
@@ -462,15 +504,20 @@ def benchmark_cmd(
     center: float | None = typer.Option(None, help="Logistic center for the score."),
     gain: float | None = typer.Option(None, help="Logistic gain for the score."),
     out: Path | None = typer.Option(None, help="Write the JSON report to this path."),
+    artifact: Path | None = typer.Option(
+        None, "--artifact", help="ONNX scoring artifact; switches to the onnxruntime backend."
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Override the recorded model_id."),
 ) -> None:
     """Run a built-in model over every episode of a task; deterministic report."""
     params = _model_params(
         name, on_threshold, off_threshold, micro_threshold, slip_threshold, center, gain
     )
-    try:
-        model = builtin_model(name, **params)
-    except (KeyError, TypeError, ValueError) as error:
-        _fail(error)
+    if artifact is not None:
+        # the logistic center/gain are baked into the artifact at export time
+        params.pop("center", None)
+        params.pop("gain", None)
+    model = _build_model(name, params, artifact, model_id)
     window_frames = window if window is not None else _default_window(name)
     try:
         with OpenXTactileArchive(source) as archive:

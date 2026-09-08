@@ -126,3 +126,60 @@ def test_benchmark_requires_known_task(tmp_path: Path) -> None:
     )
     assert result.exit_code == 1
     assert "not found" in result.output
+
+
+def test_model_run_with_onnx_artifact(tmp_path: Path) -> None:
+    from tacstack.runtime.onnx_backend import export_contact_scoring
+
+    artifact = export_contact_scoring(tmp_path / "contact.onnx")
+    result = runner.invoke(
+        app,
+        [
+            "model",
+            "run",
+            "contact",
+            str(FIXTURE),
+            "--task",
+            "Wipe_Demo",
+            "--episode",
+            "0",
+            "--stream",
+            "right_gripper",
+            "--artifact",
+            str(artifact),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event_lines = [line for line in result.output.splitlines() if line.startswith("{")]
+    events = [json.loads(line) for line in event_lines]
+    assert events, "fixture episode should produce at least one transition"
+    for event in events:
+        assert event["model_id"] == "contact-onnx"
+        assert event["metadata"]["artifact"] == str(artifact)
+
+
+def test_benchmark_with_onnx_artifact(tmp_path: Path) -> None:
+    from tacstack.runtime.onnx_backend import export_slip_scoring
+
+    artifact = export_slip_scoring(tmp_path / "slip.onnx")
+    out = tmp_path / "report.json"
+    result = runner.invoke(
+        app,
+        [
+            "benchmark",
+            "slip",
+            str(FIXTURE),
+            "--task",
+            "task_0001_Pick_Demo",
+            "--stream",
+            "right_grippertorque",
+            "--artifact",
+            str(artifact),
+            "--out",
+            str(out),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    report = json.loads(out.read_text())
+    assert report["model"]["runtime"] == "onnxruntime"
+    assert report["model"]["artifact_uri"] == str(artifact)

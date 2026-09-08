@@ -30,6 +30,10 @@ rerun = [
 annotate = [
     "pyarrow>=14,<26",
 ]
+onnx = [
+    "onnx>=1.15,<2",
+    "onnxruntime>=1.18,<2",
+]
 
 [dependency-groups]
 dev = [
@@ -39,6 +43,8 @@ dev = [
     "pre-commit>=4,<5",
     "rerun-sdk>=0.23",
     "pyarrow>=14,<26",
+    "onnx>=1.15,<2",
+    "onnxruntime>=1.18,<2",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -71,6 +77,12 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # pyarrow ships no py.typed marker; we only use its stable table read/write API.
 module = "pyarrow.*"
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# onnxruntime ships no py.typed marker; we only use InferenceSession.run.
+module = "onnxruntime.*"
 follow_imports = "skip"
 ignore_missing_imports = true
 

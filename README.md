@@ -16,10 +16,11 @@ ATIAxia80M20 force/torque) — the CLI can list / inspect / convert episodes,
 conversion writes an MCAP record that Foxglove opens, `tacstack replay` writes
 a synchronized Rerun recording, and `tacstack annotate` stores C / S / U marks
 as Parquet that replay puts back on the timeline (`rerun` / `annotate` are
-opt-in extras). The Phase 3 runtime core works: `for event in
-runtime.events(...)` drives built-in heuristic contact / slip baselines
-(deterministic threshold models — not learned; ONNX backend pending), and
-`tacstack benchmark` produces reproducible per-episode reports. The ROS2
+opt-in extras). Phase 3 is done: `for event in runtime.events(...)` drives
+built-in heuristic contact / slip baselines through both the builtin scorer
+and ONNX scoring artifacts (onnxruntime backend, artifact/manifest
+separation; deterministic threshold models — not learned), and `tacstack
+benchmark` produces reproducible per-episode reports. The ROS2
 integration and live sensors are not implemented yet. The bundled dataset
 fixture is synthetic; its layout mirrors the real releases (see
 `tests/fixtures/README.md`).
@@ -96,7 +97,7 @@ uv run pre-commit install
 
 ## Next steps
 
-1. Export the baselines to ONNX and add an onnxruntime inference backend (Phase 3).
+1. Cross-sensor calibration, quality tracking and labeled-data evaluation (Phase 4).
 2. Bring up the first real sensor and verify live record / replay / inference.
 
 See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),

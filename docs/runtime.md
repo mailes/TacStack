@@ -50,8 +50,23 @@ benchmark 跑遍 task 的所有 episode（每个 episode 重建 Runtime 保证�
 逐 episode 帧数 / 事件计数（按 kind 分组）/ 延迟统计。可复现契约：同输入 + 同参数 ⇒
 事件流（kind / probability / 顺序）逐位一致；延迟是测量值，天然随运行波动。
 
-## ONNX（Phase 3 计划中）
+## 已实现：ONNX 打分工件 + onnxruntime 后端（Phase 3）
 
-计划：baseline 的打分计算导出为 ONNX 图（不引入 PyTorch），`runtime/onnx_backend.py`
-提供 onnxruntime 推理后端，模型工件与 manifest 分离并启用 `artifact_uri` 字段，
-ONNX 与 builtin 数值等价性进入测试。
+baseline 的打分部分（幅值均值 / 帧间绝对差 → logistic）导出为手写 ONNX 图
+（opset 17，不引入 PyTorch），center/gain 固化为图内 initializer。工件输入是
+**幅值帧展平后的 float32 向量**，与 payload 形状无关；事件状态机
+（`ContactHysteresis` / `SlipEdgeTracker`）与 builtin 共享——同一分数序列下两者
+输出完全相同的事件序列（等价性测试 abs 1e-5，覆盖 float32 vs float64 差异）。
+
+```python
+from tacstack.runtime.onnx_backend import OnnxContactModel, export_contact_scoring
+
+artifact = export_contact_scoring("contact.onnx")   # 也可用外部导出的 .onnx
+model = OnnxContactModel(artifact, on_threshold=0.6)
+runtime = Runtime(model, window_frames=1)
+```
+
+CLI：`model run` / `benchmark` 传 `--artifact model.onnx [--model-id contact-onnx]`
+即切换到 onnxruntime 后端；`center/gain` 在导出时固化，不再从 CLI 接受。
+manifest 记录 `runtime="onnxruntime"` 与 `artifact_uri`（工件与 manifest 分离）。
+依赖：`uv sync --extra onnx`（`onnx` 用于导出，`onnxruntime` 用于推理）。
