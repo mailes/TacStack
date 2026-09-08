@@ -73,7 +73,7 @@
       </div>
       <p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span data-i18n="hero.status">Offline pipeline ready · Hardware validation next</span></p>
       <div class="hero-stats">
-        <div class="stat"><b>4</b><span data-i18n="hero.stat1">sensor protocol codecs</span></div>
+        <div class="stat"><b>5</b><span data-i18n="hero.stat1">sensor protocol layers</span></div>
         <div class="stat"><b>3</b><span data-i18n="hero.stat2">input modalities</span></div>
         <div class="stat"><b>0</b><span data-i18n="hero.stat3">cloud required</span></div>
       </div>
@@ -178,7 +178,7 @@
     <div class="container">
       <div class="section-head reveal">
         <h2 id="sensor-heading" data-i18n="sec.sensors.h">Software ready. Hardware is next.</h2>
-        <p data-i18n="sec.sensors.p">Four protocol codecs have tests based on vendor manual examples. Live acquisition and real-world stability will be verified when the sensors arrive.</p>
+        <p data-i18n="sec.sensors.p">Five sensor protocol layers are tested offline — four against vendor manual example frames, plus the Meta DIGIT vision-tactile identity and semantics layer. Live acquisition and real-world stability will be verified when the sensors arrive.</p>
       </div>
       <div class="table-scroll" role="region" aria-labelledby="sensor-heading" tabindex="0">
       <table class="sensor-table reveal">
@@ -214,6 +214,12 @@
             <td data-i18n="sn.r4out">Mx, My, Mz · N·m · 30/50/100 FS</td>
             <td class="mono" data-i18n="sn.r4link">USB / RS485 · 921600</td>
             <td><span class="badge badge-ok" data-i18n="sn.ok">● codec ready</span></td>
+          </tr>
+          <tr>
+            <td class="name" data-i18n="sn.r5name">Meta DIGIT<span>vision-based tactile</span></td>
+            <td data-i18n="sn.r5out">320×240 RGB gel image</td>
+            <td class="mono" data-i18n="sn.r5link">USB UVC · QVGA 60fps</td>
+            <td><span class="badge badge-ok" data-i18n="sn.okDigit">● semantics ready</span></td>
           </tr>
         </tbody>
       </table>
