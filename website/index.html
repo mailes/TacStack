@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TacStack — Cross-sensor tactile semantics for robotics</title>
-<meta name="description" content="TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — shared interfaces for tactile applications.">
-<meta name="theme-color" content="#0a0c12">
+<meta name="description" content="An open tactile layer for robotics. Explore an interactive touch simulation, then build with shared sensor interfaces, contact and slip events.">
+<meta name="theme-color" content="#f5f8fc">
 <link rel="canonical" href="https://mailes.github.io/TacStack/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://mailes.github.io/TacStack/">
@@ -18,7 +18,7 @@
 </head>
 <body>
 <a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
-<div class="backdrop"></div>
+<div class="backdrop" aria-hidden="true"></div>
 
 <nav aria-label="Main navigation">
   <div class="container nav-inner">
@@ -54,13 +54,18 @@
 </nav>
 
 <header class="hero" id="top">
+  <img class="hero-art" src="./assets/robot-touch.png" width="1536" height="1024" alt="" fetchpriority="high">
+  <div class="hero-wash" aria-hidden="true"></div>
+  <canvas id="field-canvas" aria-hidden="true"></canvas>
+  <div class="orbital orbital-one" aria-hidden="true"></div>
+  <div class="orbital orbital-two" aria-hidden="true"></div>
   <div class="container hero-grid">
     <div>
-      <div class="eyebrow" data-i18n="hero.eyebrow">Open source · Apache-2.0 · Python 3.12+</div>
-      <h1 data-i18n="hero.h1">One interface.<br>Many sensors.<br><span class="grad">A sense of touch.</span></h1>
-      <p class="lede" data-i18n="hero.lede">Build with tactile images, taxel arrays and force/torque data through a shared interface. Preserve the raw signal. Run contact and slip baselines. Replay, inspect and benchmark locally.</p>
+      <div class="eyebrow" data-i18n="hero.eyebrow">THE TACTILE LAYER FOR ROBOTICS</div>
+      <h1 data-i18n="hero.h1">Intelligence.<br>At your<br><span class="grad">fingertips.</span></h1>
+      <p class="lede" data-i18n="hero.lede">Give robot applications a common language for touch. From raw sensor signals to contact and slip events — open, local and built to connect.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="#quickstart" data-i18n="hero.cta1">Get started</a>
+        <a class="btn btn-primary" href="#quickstart" data-i18n="hero.cta1">Build with TacStack ↗</a>
         <a class="btn btn-ghost" href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           <span data-i18n="hero.cta2">View source</span>
@@ -73,23 +78,23 @@
         <div class="stat"><b>0</b><span data-i18n="hero.stat3">cloud required</span></div>
       </div>
     </div>
-    <div class="hero-visual">
-      <div class="visual-bar"><span data-i18n="visual.title">SIGNAL → SEMANTICS</span><span class="visual-index">TAC / 001</span></div>
-      <div class="visual-body">
-        <div class="signal-input">
-          <div class="taxel-map" aria-hidden="true"><span style="--level:0.07"></span><span style="--level:0.13"></span><span style="--level:0.17"></span><span style="--level:0.06"></span><span style="--level:0.14"></span><span style="--level:0.47"></span><span style="--level:0.8"></span><span style="--level:0.22"></span><span style="--level:0.17"></span><span style="--level:0.65"></span><span style="--level:1"></span><span style="--level:0.32"></span><span style="--level:0.08"></span><span style="--level:0.22"></span><span style="--level:0.34"></span><span style="--level:0.1"></span></div>
-          <div><span class="visual-label" data-i18n="visual.label">Illustrative taxel input</span><p data-i18n="visual.sub">Different inputs. A shared observation contract.</p></div>
+    <div class="touch-experience" id="touch-experience">
+      <div class="experience-label"><span class="status-dot"></span><span data-i18n="touch.lab">TACTILE LAB / INTERACTIVE CONCEPT</span></div>
+      <button type="button" class="touch-surface" id="touch-surface" aria-describedby="touch-hint">
+        <span class="touch-target" aria-hidden="true"><span></span><span></span><span></span><i>+</i></span>
+        <span class="touch-prompt" data-i18n="touch.prompt">Touch to connect</span>
+      </button>
+      <div class="telemetry">
+        <div class="telemetry-head"><span data-i18n="touch.output">TACTILE RESPONSE</span><span class="simulation-tag" data-i18n="touch.simulated">SIMULATION</span></div>
+        <div class="telemetry-main">
+          <div class="taxel-map" id="taxel-map" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <div class="event-readout"><span class="small-label">TactileEvent.kind</span><strong id="touch-event">standby</strong><div class="signal-track"><span id="signal-fill"></span></div></div>
         </div>
-        <div class="chip-row">
-          <span class="chip" data-i18n="hero.chip1"><b>Image</b> · vision tactile</span>
-          <span class="chip" data-i18n="hero.chip2"><b>Array</b> · taxels</span>
-          <span class="chip" data-i18n="hero.chip3"><b>Wrench</b> · force / torque</span>
-        </div>
-        <div class="flow-arrow" aria-hidden="true">↓</div>
-        <div class="hub"><div class="hub-title">TactileObservation</div><div class="hub-sub" data-i18n="hero.hubsub">raw-first · one contract</div></div>
-        <div class="flow-arrow" aria-hidden="true">↓</div>
-        <div class="event-output"><div class="output-label" data-i18n="visual.output">Example event · not a live reading</div><code><span class="tok-c">kind</span> <span class="tok-p">"contact_begin"</span><br><span class="tok-c">sensor_id</span> "synthetic"<br><span class="tok-c">model_id</span> "contract-example"</code></div>
+        <div class="pressure-control"><label for="touch-pressure" data-i18n="touch.pressure">Signal intensity</label><input id="touch-pressure" type="range" min="10" max="100" value="65"><output for="touch-pressure" id="pressure-value">65%</output></div>
+        <p id="touch-hint" data-i18n="touch.hint">Press to make contact. Drag to simulate slip.</p>
+        <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-i18n="touch.pause">Pause effects</button>
       </div>
+      <p id="touch-status" class="sr-only" role="status" aria-live="polite"></p>
     </div>
   </div>
 </header>
@@ -331,5 +336,6 @@ sample = TactileEvent(
 <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
 
 <script src="./app.js" defer></script>
+<script src="./touch.js" defer></script>
 </body>
 </html>

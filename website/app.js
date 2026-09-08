@@ -2,16 +2,16 @@
 const I18N = {
   "en": {
     "meta.title": "TacStack — Cross-sensor tactile semantics for robotics",
-    "meta.desc": "TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — one contract for every tactile sensor.",
+    "meta.desc": "An open tactile layer for robotics. Explore an interactive touch simulation, then build with shared sensor interfaces, contact and slip events.",
     "nav.principles": "Principles",
     "nav.pipeline": "Pipeline",
     "nav.sensors": "Sensors",
     "nav.roadmap": "Roadmap",
     "nav.quickstart": "Quick start",
-    "hero.eyebrow": "Open source · Apache-2.0 · Python 3.12+",
-    "hero.h1": "One interface.<br>Many sensors.<br><span class=\"grad\">A sense of touch.</span>",
-    "hero.lede": "Build with tactile images, taxel arrays and force/torque data through a shared interface. Preserve the raw signal. Run contact and slip baselines. Replay, inspect and benchmark locally.",
-    "hero.cta1": "Get started",
+    "hero.eyebrow": "THE TACTILE LAYER FOR ROBOTICS",
+    "hero.h1": "Intelligence.<br>At your<br><span class=\"grad\">fingertips.</span>",
+    "hero.lede": "Give robot applications a common language for touch. From raw sensor signals to contact and slip events — open, local and built to connect.",
+    "hero.cta1": "Build with TacStack ↗",
     "hero.cta2": "View source",
     "hero.stat1": "sensor protocol codecs",
     "hero.stat2": "input modalities",
@@ -107,20 +107,29 @@ const I18N = {
     "qs.manual": "Clipboard unavailable. The code is selected; use your system copy command.",
     "nav.menu": "Menu",
     "nav.close": "Close",
-    "skip": "Skip to content"
+    "skip": "Skip to content",
+    "touch.lab": "TACTILE LAB / INTERACTIVE CONCEPT",
+    "touch.prompt": "Touch to connect",
+    "touch.output": "TACTILE RESPONSE",
+    "touch.simulated": "SIMULATION",
+    "touch.pressure": "Signal intensity",
+    "touch.hint": "Press to make contact. Drag to simulate slip. Keyboard: Enter or Space.",
+    "touch.pause": "Pause effects",
+    "touch.resume": "Resume effects",
+    "touch.announcement": "Simulated event: "
   },
   "zh": {
     "meta.title": "TacStack — 面向机器人的跨传感器触觉语义与运行时",
-    "meta.desc": "TacStack 原样保留触觉原始数据，并在其上构建统一的 Observation、模型接口与事件契约——一套契约，贯通所有触觉传感器。",
+    "meta.desc": "面向机器人的开放触觉层。体验交互触碰模拟，使用统一传感器接口、接触与滑移事件构建应用。",
     "nav.principles": "原则",
     "nav.pipeline": "管线",
     "nav.sensors": "传感器",
     "nav.roadmap": "路线图",
     "nav.quickstart": "快速开始",
-    "hero.eyebrow": "开源 · Apache-2.0 · Python 3.12+",
-    "hero.h1": "多种传感器。<br>统一接口。<br><span class=\"grad\">让机器人感知触碰。</span>",
-    "hero.lede": "通过统一接口使用触觉图像、触点阵列和力 / 扭矩数据。保留原始信号，运行接触与滑移基线，在本地完成回放、调试与评估。",
-    "hero.cta1": "快速开始",
+    "hero.eyebrow": "面向机器人的触觉基础设施",
+    "hero.h1": "让智能，<br>触手<span class=\"grad\">可及。</span>",
+    "hero.lede": "为机器人应用建立共同的触觉语言。从传感器原始信号，到接触与滑移事件——开放接口，本地运行，连接感知与行动。",
+    "hero.cta1": "开始构建 ↗",
     "hero.cta2": "查看源码",
     "hero.stat1": "款传感器协议 codec",
     "hero.stat2": "类输入模态",
@@ -216,7 +225,16 @@ const I18N = {
     "qs.manual": "剪贴板不可用，代码已选中，请使用系统复制操作。",
     "nav.menu": "菜单",
     "nav.close": "收起",
-    "skip": "跳转到正文"
+    "skip": "跳转到正文",
+    "touch.lab": "触觉实验室 / 交互概念演示",
+    "touch.prompt": "触碰，建立连接",
+    "touch.output": "触觉响应",
+    "touch.simulated": "交互模拟",
+    "touch.pressure": "信号强度",
+    "touch.hint": "按住模拟接触，拖动模拟滑移。键盘可使用回车或空格。",
+    "touch.pause": "暂停特效",
+    "touch.resume": "开启特效",
+    "touch.announcement": "模拟事件："
   }
 };
 let lang = "en";
@@ -247,6 +265,7 @@ function setLang(next) {
   });
   document.getElementById("year").textContent = new Date().getFullYear();
   setMenu(navigation.classList.contains("is-open"));
+  document.dispatchEvent(new Event("tacstack:language"));
   try { localStorage.setItem("tacstack-lang", lang); } catch { /* Storage is optional. */ }
 }
 let saved;
