@@ -28,14 +28,32 @@ def assess_task(task: OpenXTactileTask, *, max_frames: int | None = None) -> dic
 
     if "timestamps" in task.array_names:
         values = np.asarray(task.array("data/timestamps")[:scan])
-        diffs = np.diff(values)
+        steps = np.diff(values)
+        median_step = float(np.median(steps)) if steps.size else 0.0
+        # a step clearly larger than the median suggests missing frames
+        # (structural completeness makes this moot for zarr, but the same
+        # metric carries over to live adapters in Phase 5)
+        suspected_gaps = int((steps > 1.5 * median_step).sum()) if median_step > 0 else 0
         timestamps_report: dict[str, Any] = {
             "scanned": int(values.size),
-            "monotonic": bool(np.all(diffs >= 0)) if diffs.size else True,
-            "unique_steps": sorted({int(v) for v in diffs.tolist()}) if diffs.size else [],
+            "monotonic": bool(np.all(steps >= 0)) if steps.size else True,
+            "steps": {
+                "min": int(steps.min()) if steps.size else 0,
+                "max": int(steps.max()) if steps.size else 0,
+                "median": median_step,
+                "std": float(steps.std()) if steps.size else 0.0,
+            },
+            "suspected_gaps": suspected_gaps,
+            "unique_steps": sorted({int(v) for v in steps.tolist()}) if steps.size else [],
         }
     else:
-        timestamps_report = {"scanned": 0, "monotonic": True, "unique_steps": []}
+        timestamps_report = {
+            "scanned": 0,
+            "monotonic": True,
+            "steps": {"min": 0, "max": 0, "median": 0.0, "std": 0.0},
+            "suspected_gaps": 0,
+            "unique_steps": [],
+        }
 
     streams: list[dict[str, Any]] = []
     for stream in task.streams():

@@ -120,6 +120,7 @@ class ContactBaseline:
         probability = 1.0 / (1.0 + exp(-self._gain * (value - self._center)))
         metadata = {
             "activity_value": value,
+            "calibration_id": observation.calibration_id,
             "on_threshold": self._on,
             "off_threshold": self._off,
             "oxt_frame_index": observation.metadata.get("oxt_frame_index"),

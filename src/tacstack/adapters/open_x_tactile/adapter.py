@@ -57,9 +57,12 @@ class OpenXTactileAdapter:
         rate_hz: float | None = None,
         timestamp_domain: TimestampDomain = "frame_index",
         extra_arrays: Sequence[str] = (),
+        calibration_id: str | None = None,
     ) -> None:
         if rate_hz is not None and (not isfinite(rate_hz) or rate_hz <= 0):
             raise ValueError("rate_hz must be finite and positive when given")
+        if calibration_id is not None and not calibration_id.strip():
+            raise ValueError("calibration_id must not be empty when given")
         extra_arrays = tuple(extra_arrays)
         if len(set(extra_arrays)) != len(extra_arrays):
             raise ValueError("extra_arrays must not contain duplicates")
@@ -72,6 +75,7 @@ class OpenXTactileAdapter:
         self._rate_hz = rate_hz
         self._timestamp_domain: TimestampDomain = timestamp_domain
         self._extra_arrays = extra_arrays
+        self._calibration_id = calibration_id
         self._archive: OpenXTactileArchive | None = None
         self._task: OpenXTactileTask | None = None
         self._stream: TactileStreamInfo | None = None
@@ -166,7 +170,7 @@ class OpenXTactileAdapter:
             timestamp_ns=self._timestamp_ns(index),
             sensor=self._descriptor,
             raw=self._raw_payload(index),
-            calibration_id=None,
+            calibration_id=self._calibration_id,
             quality={},
             metadata=self._metadata(index),
         )

@@ -74,6 +74,7 @@ def _open_episode_adapter(
     stream: str | None,
     rate_hz: float | None,
     extra_arrays: tuple[str, ...] = (),
+    calibration_id: str | None = None,
 ) -> OpenXTactileAdapter:
     try:
         with OpenXTactileArchive(source) as archive:
@@ -85,6 +86,7 @@ def _open_episode_adapter(
             stream=stream,
             rate_hz=rate_hz,
             extra_arrays=extra_arrays,
+            calibration_id=calibration_id,
         )
         adapter.open()
     except (IndexError, KeyError, OSError, RuntimeError, ValueError) as error:
@@ -158,9 +160,14 @@ def dataset_convert(
     rate_hz: float | None = typer.Option(
         None, help="Assumed frame rate; converts index timestamps to ns."
     ),
+    calibration_id: str | None = typer.Option(
+        None, "--calibration-id", help="Calibration provenance stored on every observation."
+    ),
 ) -> None:
     """Convert one episode to an MCAP recording (one JSON message per frame)."""
-    adapter = _open_episode_adapter(source, task, episode, stream, rate_hz)
+    adapter = _open_episode_adapter(
+        source, task, episode, stream, rate_hz, calibration_id=calibration_id
+    )
     try:
         summary = write_episode_mcap(observations(adapter), out, embed_payloads=embed)
     finally:
@@ -178,6 +185,7 @@ def _open_any_source(
     stream: str | None,
     rate_hz: float | None,
     extra_arrays: tuple[str, ...] = (),
+    calibration_id: str | None = None,
 ) -> Any:
     """Open an OXT archive/extracted dir, or a TacStack .mcap recording."""
     if source.suffix == ".mcap":
@@ -189,7 +197,15 @@ def _open_any_source(
             _fail(error)
         adapter.open()
         return adapter
-    return _open_episode_adapter(source, task, episode, stream, rate_hz, extra_arrays=extra_arrays)
+    return _open_episode_adapter(
+        source,
+        task,
+        episode,
+        stream,
+        rate_hz,
+        extra_arrays=extra_arrays,
+        calibration_id=calibration_id,
+    )
 
 
 @app.command()
@@ -212,6 +228,9 @@ def replay(
         [],
         "--extra-array",
         help="Embed a named data array per frame (e.g. a camera stream); repeatable. OXT only.",
+    ),
+    calibration_id: str | None = typer.Option(
+        None, "--calibration-id", help="Calibration provenance stored on every observation."
     ),
     model: str | None = typer.Option(
         None, "--model", help="Run this builtin model inline and log events (contact|slip)."
@@ -258,7 +277,13 @@ def replay(
             window_frames=_default_window(model),
         )
     adapter = _open_any_source(
-        source, task, episode, stream, rate_hz, extra_arrays=tuple(extra_array)
+        source,
+        task,
+        episode,
+        stream,
+        rate_hz,
+        extra_arrays=tuple(extra_array),
+        calibration_id=calibration_id,
     )
     replay_logger = RerunReplay()
     if out is not None:
@@ -504,6 +529,9 @@ def model_run(
     slip_threshold: float | None = typer.Option(None, help="Slip: slip threshold."),
     center: float | None = typer.Option(None, help="Logistic center for the score."),
     gain: float | None = typer.Option(None, help="Logistic gain for the score."),
+    calibration_id: str | None = typer.Option(
+        None, "--calibration-id", help="Calibration provenance stored on every observation."
+    ),
     out: Path | None = typer.Option(
         None, help="Write all events as a JSON array to this path instead of stdout."
     ),
@@ -523,7 +551,9 @@ def model_run(
     model = _build_model(name, params, artifact, model_id)
     window_frames = window if window is not None else _default_window(name)
     runtime = Runtime(model, window_frames=window_frames)
-    adapter = _open_any_source(source, task, episode, stream, rate_hz)
+    adapter = _open_any_source(
+        source, task, episode, stream, rate_hz, calibration_id=calibration_id
+    )
     events: list[TactileEvent] = []
     frames = 0
     try:

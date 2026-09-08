@@ -137,6 +137,7 @@ class SlipBaseline:
         diff, probability = self._diff_score(previous, current)
         metadata = {
             "diff_value": diff,
+            "calibration_id": current.calibration_id,
             "micro_threshold": self._micro,
             "slip_threshold": self._slip,
             "oxt_frame_index": current.metadata.get("oxt_frame_index"),

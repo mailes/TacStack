@@ -196,6 +196,7 @@ class OnnxContactModel:
             region=None,
             metadata={
                 "artifact": self._artifact,
+                "calibration_id": observation.calibration_id,
                 "on_threshold": self._on,
                 "off_threshold": self._off,
                 "oxt_frame_index": observation.metadata.get("oxt_frame_index"),
@@ -271,6 +272,7 @@ class OnnxSlipModel:
             region=None,
             metadata={
                 "artifact": self._artifact,
+                "calibration_id": current.calibration_id,
                 "micro_threshold": self._micro,
                 "slip_threshold": self._slip,
                 "oxt_frame_index": current.metadata.get("oxt_frame_index"),
