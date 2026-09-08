@@ -924,6 +924,9 @@ dependencies = [
 annotate = [
     { name = "pyarrow" },
 ]
+lerobot = [
+    { name = "pyarrow" },
+]
 onnx = [
     { name = "onnx" },
     { name = "onnxruntime" },
@@ -951,11 +954,12 @@ requires-dist = [
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.15,<2" },
     { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.18,<2" },
     { name = "pyarrow", marker = "extra == 'annotate'", specifier = ">=14,<26" },
+    { name = "pyarrow", marker = "extra == 'lerobot'", specifier = ">=14,<26" },
     { name = "rerun-sdk", marker = "extra == 'rerun'", specifier = ">=0.23" },
     { name = "typer", specifier = ">=0.15,<1" },
     { name = "zarr", specifier = ">=3,<4" },
 ]
-provides-extras = ["rerun", "annotate", "onnx"]
+provides-extras = ["rerun", "annotate", "lerobot", "onnx"]
 
 [package.metadata.requires-dev]
 dev = [

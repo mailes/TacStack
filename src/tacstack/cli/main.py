@@ -187,12 +187,22 @@ def _open_any_source(
     extra_arrays: tuple[str, ...] = (),
     calibration_id: str | None = None,
 ) -> Any:
-    """Open an OXT archive/extracted dir, or a TacStack .mcap recording."""
+    """Open an OXT archive/extracted dir, a TacStack .mcap recording, or a
+    LeRobot v3.0 dataset directory."""
     if source.suffix == ".mcap":
         from tacstack.adapters.mcap import McapReplayAdapter
 
         try:
             adapter: Any = McapReplayAdapter(source, stream=stream)
+        except (FileNotFoundError, OSError, ValueError) as error:
+            _fail(error)
+        adapter.open()
+        return adapter
+    if source.is_dir() and (source / "meta" / "info.json").is_file():
+        from tacstack.adapters.lerobot import LeRobotAdapter
+
+        try:
+            adapter = LeRobotAdapter(source, feature=stream, episode=episode)
         except (FileNotFoundError, OSError, ValueError) as error:
             _fail(error)
         adapter.open()
@@ -214,7 +224,7 @@ def replay(
         ...,
         exists=True,
         readable=True,
-        help="OXT tar/extracted dir, or a TacStack .mcap recording (from convert --embed).",
+        help="OXT tar/extracted dir, a TacStack .mcap recording, or a LeRobot v3 dataset dir.",
     ),
     task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
     episode: int = typer.Option(0, min=0, help="Episode index."),
