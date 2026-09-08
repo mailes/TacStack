@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tacstack"
-version = "0.1.0.dev0"
+version = "0.1.0a1"
 description = "Cross-sensor tactile contracts and semantic runtime foundations"
 readme = "README.md"
 requires-python = ">=3.12"
