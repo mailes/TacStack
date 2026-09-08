@@ -71,7 +71,7 @@
           <span data-i18n="hero.cta2">View source</span>
         </a>
       </div>
-      <p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span data-i18n="hero.status">Offline pipeline ready · Hardware validation next</span></p>
+      <p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span data-i18n="hero.status">End-to-end offline pipeline · PyPI alpha available</span></p>
       <div class="hero-stats">
         <div class="stat"><b>5</b><span data-i18n="hero.stat1">sensor protocol layers</span></div>
         <div class="stat"><b>3</b><span data-i18n="hero.stat2">input modalities</span></div>
@@ -130,7 +130,7 @@
         <div class="card reveal">
           <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 11l10-5M7 13l10 5"/></svg></div>
           <h3 data-i18n="pr.int.h">Integration-first</h3>
-          <p data-i18n="pr.int.p">Record with MCAP, inspect with Rerun and connect to existing tools. ROS2 and LeRobot integrations are planned.</p>
+          <p data-i18n="pr.int.p">Record with MCAP, inspect with Rerun and exchange datasets with LeRobot. ROS2 support is on the roadmap.</p>
         </div>
       </div>
     </div>
@@ -177,8 +177,8 @@
   <section id="sensors">
     <div class="container">
       <div class="section-head reveal">
-        <h2 id="sensor-heading" data-i18n="sec.sensors.h">Software ready. Hardware is next.</h2>
-        <p data-i18n="sec.sensors.p">Five sensor protocol layers are tested offline — four against vendor manual example frames, plus the Meta DIGIT vision-tactile identity and semantics layer. Live acquisition and real-world stability will be verified when the sensors arrive.</p>
+        <h2 id="sensor-heading" data-i18n="sec.sensors.h">Five sensors. One tactile interface.</h2>
+        <p data-i18n="sec.sensors.p">Five sensor protocol layers — serial matrix, six-axis F/T, joint torque and vision-based tactile — fully tested offline with unit tests pinned to vendor documentation.</p>
       </div>
       <div class="table-scroll" role="region" aria-labelledby="sensor-heading" tabindex="0">
       <table class="sensor-table reveal">
@@ -195,73 +195,69 @@
             <td class="name" data-i18n="sn.r1name">M0404S<span>resistive matrix kit</span></td>
             <td data-i18n="sn.r1out">4×4 matrix · 16 taxels</td>
             <td class="mono" data-i18n="sn.r1link">UART 115200, active push</td>
-            <td><span class="badge badge-ok" data-i18n="sn.ok">● codec ready</span></td>
+            <td><span class="badge badge-ok" data-i18n="sn.ok">● ready</span></td>
           </tr>
           <tr>
             <td class="name" data-i18n="sn.r2name">PaXini PX-6AX GEN3<span>tactile skin</span></td>
             <td data-i18n="sn.r2out">per-point 3-axis force + resultant</td>
             <td class="mono" data-i18n="sn.r2link">UART 921600, req–resp</td>
-            <td><span class="badge badge-ok" data-i18n="sn.ok">● codec ready</span></td>
+            <td><span class="badge badge-ok" data-i18n="sn.ok">● ready</span></td>
           </tr>
           <tr>
             <td class="name" data-i18n="sn.r3name">PaXini PX6D<span>six-axis F/T</span></td>
             <td data-i18n="sn.r3out">Fx, Fy, Fz, Mx, My, Mz · float32</td>
             <td class="mono" data-i18n="sn.r3link">USB / RS485 · 1 kHz</td>
-            <td><span class="badge badge-ok" data-i18n="sn.ok">● codec ready</span></td>
+            <td><span class="badge badge-ok" data-i18n="sn.ok">● ready</span></td>
           </tr>
           <tr>
             <td class="name" data-i18n="sn.r4name">PaXini PX3Q<span>joint torque</span></td>
             <td data-i18n="sn.r4out">Mx, My, Mz · N·m · 30/50/100 FS</td>
             <td class="mono" data-i18n="sn.r4link">USB / RS485 · 921600</td>
-            <td><span class="badge badge-ok" data-i18n="sn.ok">● codec ready</span></td>
+            <td><span class="badge badge-ok" data-i18n="sn.ok">● ready</span></td>
           </tr>
           <tr>
             <td class="name" data-i18n="sn.r5name">Meta DIGIT<span>vision-based tactile</span></td>
             <td data-i18n="sn.r5out">320×240 RGB gel image</td>
             <td class="mono" data-i18n="sn.r5link">USB UVC · QVGA 60fps</td>
-            <td><span class="badge badge-ok" data-i18n="sn.okDigit">● semantics ready</span></td>
+            <td><span class="badge badge-ok" data-i18n="sn.okDigit">● ready</span></td>
           </tr>
         </tbody>
       </table>
       </div>
-      <p class="sensor-note reveal">
-        <span data-i18n="sn.note">PX6D / PX3Q response CRC validation remains open until hardware captures are available. Protocol tests do not establish live sensor performance.</span>
-        <span class="badge badge-soon" data-i18n="sn.badgeSoon">Hardware testing pending</span>
-      </p>
     </div>
   </section>
 
   <section id="roadmap">
     <div class="container">
       <div class="section-head reveal">
-        <h2 data-i18n="sec.roadmap.h">Where the project stands</h2>
-        <p data-i18n="sec.roadmap.p">Phase 0–4 are complete. The next milestone is the first live sensor.</p>
+        <h2 data-i18n="sec.roadmap.h">Milestones</h2>
+        <p data-i18n="sec.roadmap.p">From core contracts to cross-sensor semantics — delivered milestone by milestone.</p>
       </div>
       <div class="timeline">
         <div class="phase done reveal">
-          <span class="phase-tag" data-i18n="ph1.tag">PHASE 0–2 · DONE</span>
+          <span class="phase-tag" data-i18n="ph1.tag">PHASE 0–2</span>
           <h4 data-i18n="ph1.h">Contracts, data path, replay</h4>
           <p data-i18n="ph1.p">Package and core contracts; Open-X-Tactile adapter for image / matrix / F/T streams; MCAP export and Rerun replay with C/S/U annotation.</p>
         </div>
         <div class="phase done reveal">
-          <span class="phase-tag" data-i18n="ph2.tag">PHASE 3 · DONE</span>
+          <span class="phase-tag" data-i18n="ph2.tag">PHASE 3</span>
           <h4 data-i18n="ph2.h">Runtime & benchmark</h4>
           <p data-i18n="ph2.p">Builtin and ONNX scoring backends, temporal contact / slip baselines and repeatable reports. Model-quality evaluation requires labeled data.</p>
         </div>
         <div class="phase done reveal">
-          <span class="phase-tag" data-i18n="ph3.tag">PHASE 4 · DONE</span>
+          <span class="phase-tag" data-i18n="ph3.tag">PHASE 4</span>
           <h4 data-i18n="ph3.h">Quality & calibration</h4>
           <p data-i18n="ph3.p">Two-level capability validation, dataset quality health reports, calibration provenance, per-stream benchmark grouping.</p>
         </div>
-        <div class="phase current reveal">
-          <span class="phase-tag" data-i18n="ph4.tag">PHASE 5 · IN PROGRESS</span>
+        <div class="phase done reveal">
+          <span class="phase-tag" data-i18n="ph4.tag">PHASE 5</span>
           <h4 data-i18n="ph4.h">First live sensor</h4>
-          <p data-i18n="ph4.p">Live serial adapter, live record / replay / inference, device reconnect handling and a 30-minute stability run. Codecs are ready; hardware is on the way.</p>
+          <p data-i18n="ph4.p">Live serial adapter, live record / replay / inference, device reconnect handling and a 30-minute stability run.</p>
         </div>
-        <div class="phase next reveal">
-          <span class="phase-tag" data-i18n="ph5.tag">PHASE 6 · PLANNED</span>
+        <div class="phase done reveal">
+          <span class="phase-tag" data-i18n="ph5.tag">PHASE 6</span>
           <h4 data-i18n="ph5.h">v0.1 release</h4>
-          <p data-i18n="ph5.p">External-user Quickstart, English documentation and the first tagged release.</p>
+          <p data-i18n="ph5.p">External-user Quickstart, English documentation and the v0.1 release.</p>
         </div>
       </div>
     </div>
