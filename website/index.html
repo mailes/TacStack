@@ -265,23 +265,23 @@
     <div class="container">
       <div class="section-head reveal">
         <h2 data-i18n="sec.qs.h">Start with a working offline demo.</h2>
-        <p data-i18n="sec.qs.p">Python 3.12+ and <a href="https://docs.astral.sh/uv/">uv</a>. Install from source, then explore the bundled synthetic fixture. No sensor or dataset download needed.</p>
+        <p data-i18n="sec.qs.p">Python 3.12+. Install the alpha from <a href="https://pypi.org/project/tacstack/">PyPI</a>, or clone from source for the full offline tour. No sensor or dataset download needed.</p>
       </div>
-      <p class="qs-note" data-i18n="qs.note">The bundled fixture and the event below are synthetic. Use your own recordings to evaluate model behavior. Not yet published on PyPI.</p>
+      <p class="qs-note" data-i18n="qs.note">The bundled fixture and the event below are synthetic. Use your own recordings to evaluate model behavior. PyPI hosts the alpha (0.1.0a1); the guided demo needs a repository checkout.</p>
       <div class="qs-grid">
         <div class="code-card reveal">
           <div class="bar"><span>terminal</span><button type="button" class="copy" data-copy="quickstart-cmds" data-i18n="qs.copy">copy</button></div>
-          <pre><code id="quickstart-cmds" data-i18n="qs.terminal"><span class="tok-c"># clone and install (uv manages everything)</span>
-git clone https://github.com/mailes/TacStack.git
-cd TacStack
+          <pre><code id="quickstart-cmds" data-i18n="qs.terminal"><span class="tok-c"># install the alpha from PyPI (Python 3.12+)</span>
+pip install --pre tacstack
+
+<span class="tok-c"># verify offline — no data download, no hardware</span>
+tacstack version
+tacstack contract-demo
+
+<span class="tok-c"># from source: guided demo + bundled fixture + Rerun replay</span>
+git clone https://github.com/mailes/TacStack.git &amp;&amp; cd TacStack
 uv sync --extra rerun
-
-<span class="tok-c"># guided tour — no data download, no hardware</span>
-<span class="tok-p">uv run</span> tacstack demo
-
-<span class="tok-c"># replay the bundled synthetic fixture in Rerun</span>
-<span class="tok-p">uv run</span> tacstack replay \
-  tests/fixtures/open_x_tactile/demo_wipe.tar --viewer</code></pre>
+<span class="tok-p">uv run</span> tacstack demo</code></pre>
         </div>
         <div class="code-card reveal">
           <div class="bar"><span>contract_example.py</span><button type="button" class="copy" data-copy="quickstart-code" data-i18n="qs.copy">copy</button></div>
