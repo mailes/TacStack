@@ -96,6 +96,37 @@ def test_replays_opted_in_camera_frames(tmp_path: Path) -> None:
     assert out.stat().st_size > 0
 
 
+def test_blueprint_tracks_logged_entities(tmp_path: Path) -> None:
+    adapter = OpenXTactileAdapter(
+        FIXTURE,
+        task="task_0001_Pick_Demo",
+        episode=0,
+        stream="right_grippertorque",
+        extra_arrays=("right_wrist_camera_rgb",),
+    )
+    adapter.open()
+    replay = RerunReplay()
+    replay.save(tmp_path / "bp.rrd")
+    try:
+        for observation in observations(adapter):
+            replay.log_observation(observation)
+    finally:
+        adapter.close()
+    replay.flush()
+    root = "oxt/task_0001_Pick_Demo/right_grippertorque"
+    assert f"{root}/taxels" in replay._tensor_entities
+    assert f"{root}/taxels" in replay._scalar_groups
+    assert f"{root}/raw/right_wrist_camera_rgb" in replay._image_entities
+    assert f"{root}/raw/robot_joint" in replay._scalar_groups
+    assert f"{root}/raw/sub_task_instruction" in replay._text_entities
+
+
+def test_flush_without_observations_is_clean(tmp_path: Path) -> None:
+    replay = RerunReplay()
+    replay.save(tmp_path / "empty.rrd")
+    replay.flush()
+
+
 def test_extra_array_must_exist() -> None:
     adapter = OpenXTactileAdapter(
         FIXTURE, task="Wipe_Demo", stream="right_gripper", extra_arrays=("nope",)

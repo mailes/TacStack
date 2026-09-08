@@ -16,6 +16,9 @@ Contract:
   arrays (opted-in cameras) log as images, anything else logs as a tensor.
 - String values log as text on change only, so per-frame instructions do not
   spam the recording.
+- On ``flush()`` a self-describing blueprint is sent, laying out exactly the
+  entities this recording logged; without it the viewer may reuse a cached
+  auto-layout from an earlier recording under the same application id.
 - Requires the optional ``rerun`` extra (``uv sync --extra rerun``); this
   module must only be imported where that failure is handled.
 """
@@ -24,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 import rerun as rr
+import rerun.blueprint as rrb
 
 from tacstack.core import SensorDescriptor, TactileObservation
 from tacstack.core.serialization import to_debug_json
@@ -39,6 +43,12 @@ def _entity_safe(name: str) -> str:
     return name.replace(":", "/")
 
 
+def _view_name(path: str) -> str:
+    """Short tab label: the last two path segments ("tactile_image/area_0")."""
+    parts = path.split("/")
+    return "/".join(parts[-2:]) if len(parts) > 2 else path
+
+
 class RerunReplay:
     """Log TactileObservations to a Rerun recording for synchronized replay."""
 
@@ -46,6 +56,11 @@ class RerunReplay:
         self._stream = rr.RecordingStream(application_id)
         self._descriptors_logged: set[str] = set()
         self._last_text: dict[str, str] = {}
+        # ordered entity bookkeeping for the self-describing blueprint
+        self._image_entities: dict[str, None] = {}
+        self._tensor_entities: dict[str, None] = {}
+        self._text_entities: dict[str, None] = {}
+        self._scalar_groups: dict[str, None] = {}
 
     def save(self, path: str | Path) -> None:
         """Write the recording to a .rrd file as it is logged."""
@@ -60,6 +75,7 @@ class RerunReplay:
         self._stream.connect_grpc(url)
 
     def flush(self) -> None:
+        self._send_blueprint()
         self._stream.flush()
 
     def log_observation(self, observation: TactileObservation) -> None:
@@ -105,6 +121,7 @@ class RerunReplay:
                 path = f"{root}/tactile_image"
                 if len(areas) > 1:
                     path += f"/area_{area}"
+                self._image_entities.setdefault(path, None)
                 self._stream.log(path, rr.Image(frames[i]))
         if observation.taxels is not None:
             payload = np.asarray(observation.taxels)
@@ -112,7 +129,9 @@ class RerunReplay:
             self._log_taxels(root, payload, areas)
 
     def _log_taxels(self, root: str, payload: np.ndarray, areas: tuple[int, ...]) -> None:
-        self._stream.log(f"{root}/taxels", rr.Tensor(payload))
+        tensor_path = f"{root}/taxels"
+        self._tensor_entities.setdefault(tensor_path, None)
+        self._stream.log(tensor_path, rr.Tensor(payload))
         if payload.ndim >= 3:
             # (areas, *grid[, axes]): magnitude over the trailing axis as heatmap
             magnitude = np.linalg.norm(payload, axis=-1) if payload.ndim >= 4 else np.abs(payload)
@@ -124,6 +143,7 @@ class RerunReplay:
                 path = f"{root}/taxel_heatmap"
                 if len(areas) > 1:
                     path += f"/area_{area}"
+                self._image_entities.setdefault(path, None)
                 self._stream.log(path, rr.Image(frame))
             return
         values = (
@@ -139,6 +159,7 @@ class RerunReplay:
             base = f"{root}/taxels"
             if len(areas) > 1:
                 base += f"/area_{area}"
+            self._scalar_groups.setdefault(base, None)
             for name, value in zip(names, series.tolist(), strict=True):
                 self._stream.log(f"{base}/{name}", rr.Scalars([float(value)]))
 
@@ -148,19 +169,65 @@ class RerunReplay:
             if isinstance(value, (str, np.str_)):
                 text = str(value)
                 if self._last_text.get(name) != text:
+                    self._text_entities.setdefault(path, None)
                     self._stream.log(path, rr.TextDocument(text))
                     self._last_text[name] = text
                 continue
             array = np.asarray(value)
             if array.dtype.kind not in "fiub":
+                self._text_entities.setdefault(path, None)
                 self._stream.log(path, rr.TextDocument(str(value)))
                 continue
             if array.ndim == 0:
+                self._scalar_groups.setdefault(path, None)
                 self._stream.log(path, rr.Scalars([float(array)]))
             elif array.ndim == 3 and array.shape[-1] in (1, 3, 4):
+                self._image_entities.setdefault(path, None)
                 self._stream.log(path, rr.Image(array))
             elif array.size <= _MAX_SCALAR_SERIES:
+                self._scalar_groups.setdefault(path, None)
                 for j, item in enumerate(array.reshape(-1).tolist()):
                     self._stream.log(f"{path}/c{j}", rr.Scalars([float(item)]))
             else:
+                self._tensor_entities.setdefault(path, None)
                 self._stream.log(path, rr.Tensor(array))
+
+    def _send_blueprint(self) -> None:
+        """Send a layout covering exactly the entities this recording logged.
+
+        Without this the viewer may reuse a cached auto-layout from an earlier
+        recording with the same application id, leaving tabs pointed at
+        entities that do not exist in this recording.
+        """
+        if not (
+            self._image_entities
+            or self._tensor_entities
+            or self._text_entities
+            or self._scalar_groups
+        ):
+            return
+        image_tabs = [
+            rrb.Spatial2DView(origin=path, name=_view_name(path)) for path in self._image_entities
+        ]
+        plot_tabs = [
+            rrb.TimeSeriesView(origin=path, name=_view_name(path)) for path in self._scalar_groups
+        ]
+        data_tabs = [
+            rrb.TensorView(origin=path, name=_view_name(path)) for path in self._tensor_entities
+        ] + [
+            rrb.TextDocumentView(origin=path, name=_view_name(path)) for path in self._text_entities
+        ]
+        rows: list[rrb.Container | rrb.View] = []
+        shares: list[float] = []
+        if image_tabs:
+            rows.append(rrb.Tabs(*image_tabs, name="Images"))
+            shares.append(3.0)
+        if plot_tabs:
+            rows.append(rrb.Tabs(*plot_tabs, name="Series"))
+            shares.append(2.0)
+        if data_tabs:
+            rows.append(rrb.Tabs(*data_tabs, name="Tensors & Text"))
+            shares.append(2.0)
+        self._stream.send_blueprint(
+            rrb.Blueprint(rrb.Vertical(*rows, row_shares=shares), collapse_panels=False)
+        )
