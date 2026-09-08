@@ -15,7 +15,9 @@ MCAP 记录，`tacstack replay` 输出同步时间轴的 Rerun 录制，`tacstac
 Phase 3 已完成：`for event in runtime.events(...)` 驱动内置启发式
 contact / slip baseline，同时支持 builtin 打分与 ONNX 打分工件
 （onnxruntime 后端，工件与 manifest 分离；确定性阈值模型，非学习模型），
-`tacstack benchmark` 输出可复现的逐 episode 报告。ROS2 集成和真实传感器尚未实现。
+`tacstack benchmark` 输出可复现的逐 episode 报告。Phase 4 进行中：capability
+两级校验、`dataset quality` 健康报告、benchmark 按 stream 分组已通。
+ROS2 集成和真实传感器尚未实现。
 仓库内置的数据集 fixture 是合成内容，布局镜像真实发布格式（见
 `tests/fixtures/README.md`）。
 

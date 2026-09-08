@@ -8,7 +8,7 @@ latency statistics are wall-clock measurements and vary between runs.
 Quality metrics against labeled data are out of scope for v0.1.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from math import ceil
 from typing import Any
@@ -63,22 +63,24 @@ def summarize_events(
 
 
 def benchmark_episodes(
-    model: TactileModel,
+    model_factory: Callable[[], TactileModel],
     episodes: Iterable[tuple[int, Iterable[TactileObservation]]],
     *,
     window_frames: int,
 ) -> dict[str, Any]:
     """Run the model over every (episode, observations) pair; JSON-safe report.
 
-    A fresh Runtime (and therefore fresh model event state) is built per
-    episode so runs are independent and reproducible.
+    A fresh model and Runtime are built per episode (via ``model_factory``)
+    so episode runs are independent: the event state machines live in the
+    model and must not bleed across episode boundaries.
     """
+    manifest = model_factory().manifest
     episode_reports: list[EpisodeSummary] = []
     totals: dict[str, int] = {}
     total_frames = 0
     total_events = 0
     for episode_index, observations in episodes:
-        runtime = Runtime(model, window_frames=window_frames)
+        runtime = Runtime(model_factory(), window_frames=window_frames)
         collected: list[TactileEvent] = []
         frames = 0
         for observation in observations:
@@ -91,7 +93,7 @@ def benchmark_episodes(
         for kind, count in summary.counts.items():
             totals[kind] = totals.get(kind, 0) + count
     return {
-        "model": to_debug_dict(model.manifest),
+        "model": to_debug_dict(manifest),
         "window_frames": window_frames,
         "episodes": [to_debug_dict(vars(summary)) for summary in episode_reports],
         "totals": {

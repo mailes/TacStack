@@ -10,10 +10,11 @@ import typer
 from tacstack import __version__
 from tacstack.adapters.base import observations
 from tacstack.adapters.open_x_tactile import OpenXTactileAdapter, OpenXTactileArchive
+from tacstack.adapters.open_x_tactile.quality import assess_task
 from tacstack.annotations import SCHEMA_VERSION, AnnotationLog, TactileMark, normalize_mark, now_ns
 from tacstack.benchmark import benchmark_episodes
 from tacstack.core import TactileEvent, TactileObservation
-from tacstack.core.serialization import to_debug_json
+from tacstack.core.serialization import to_debug_dict, to_debug_json
 from tacstack.integrations.mcap import observation_record, write_episode_mcap
 from tacstack.models import builtin_model
 from tacstack.runtime.pipeline import Runtime
@@ -484,6 +485,31 @@ def model_run(
         )
 
 
+@dataset_app.command("quality")
+def dataset_quality(
+    source: Path = typer.Argument(
+        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+    ),
+    task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
+    max_frames: int | None = typer.Option(
+        None, min=1, help="Scan only the first N frames per stream (default: all)."
+    ),
+) -> None:
+    """Report task health: episodes, timestamp monotonicity, non-finite payload counts."""
+    try:
+        with OpenXTactileArchive(source) as archive:
+            resolved = _resolve_task(archive, task)
+            report = assess_task(archive.open_task(resolved), max_frames=max_frames)
+    except (KeyError, OSError, ValueError) as error:
+        _fail(error)
+    typer.echo(to_debug_json(report))
+    streams = ", ".join(f"{s['stream']}:{s['nonfinite']} nonfinite" for s in report["streams"])
+    typer.echo(
+        f"summary: {report['task']} episodes={report['episodes']} frames={report['frames']} "
+        f"timestamps_monotonic={report['timestamps']['monotonic']} [{streams}]"
+    )
+
+
 @app.command("benchmark")
 def benchmark_cmd(
     name: str = typer.Argument(..., help="Built-in model: contact or slip."),
@@ -503,6 +529,9 @@ def benchmark_cmd(
     slip_threshold: float | None = typer.Option(None, help="Slip: slip threshold."),
     center: float | None = typer.Option(None, help="Logistic center for the score."),
     gain: float | None = typer.Option(None, help="Logistic gain for the score."),
+    all_streams: bool = typer.Option(
+        False, "--all-streams", help="Benchmark every tactile stream; nest the report per stream."
+    ),
     out: Path | None = typer.Option(None, help="Write the JSON report to this path."),
     artifact: Path | None = typer.Option(
         None, "--artifact", help="ONNX scoring artifact; switches to the onnxruntime backend."
@@ -517,28 +546,64 @@ def benchmark_cmd(
         # the logistic center/gain are baked into the artifact at export time
         params.pop("center", None)
         params.pop("gain", None)
-    model = _build_model(name, params, artifact, model_id)
     window_frames = window if window is not None else _default_window(name)
     try:
         with OpenXTactileArchive(source) as archive:
             resolved_task = _resolve_task(archive, task)
-            episode_count = archive.open_task(resolved_task).info().episodes
+            task_obj = archive.open_task(resolved_task)
+            episode_count = task_obj.info().episodes
+            stream_keys = [s.stream for s in task_obj.streams()]
     except (KeyError, OSError, ValueError) as error:
         _fail(error)
 
-    def episode_streams() -> Iterator[tuple[int, Iterator[TactileObservation]]]:
-        for index in range(episode_count):
-            adapter = _open_episode_adapter(source, resolved_task, index, stream, None)
-            try:
-                yield index, observations(adapter)
-            finally:
-                adapter.close()
+    def run_stream(stream_key: str | None) -> dict[str, Any]:
+        sensor_info: dict[str, Any] | None = None
+        resolved_stream = stream_key or ""
 
-    report = benchmark_episodes(model, episode_streams(), window_frames=window_frames)
-    report["task"] = resolved_task
-    report["parameters"] = params
+        def make_model() -> Any:
+            return _build_model(name, dict(params), artifact, model_id)
+
+        def episode_streams() -> Iterator[tuple[int, Iterator[TactileObservation]]]:
+            nonlocal sensor_info, resolved_stream
+            for index in range(episode_count):
+                adapter = _open_episode_adapter(source, resolved_task, index, stream_key, None)
+                if sensor_info is None:
+                    descriptor = adapter.descriptor()
+                    sensor_info = to_debug_dict(descriptor)
+                    resolved_stream = descriptor.frame_id
+                try:
+                    yield index, observations(adapter)
+                finally:
+                    adapter.close()
+
+        report = benchmark_episodes(make_model, episode_streams(), window_frames=window_frames)
+        report["task"] = resolved_task
+        report["stream"] = resolved_stream
+        report["sensor"] = sensor_info
+        report["parameters"] = params
+        return report
+
+    if all_streams:
+        report: dict[str, Any] = {
+            "task": resolved_task,
+            "runs": [run_stream(key) for key in stream_keys],
+        }
+        total_events = sum(run["totals"]["events"] for run in report["runs"])
+        summary_counts: dict[str, int] = {}
+        for run in report["runs"]:
+            for kind, count in run["totals"]["counts"].items():
+                summary_counts[kind] = summary_counts.get(kind, 0) + count
+        totals = {
+            "streams": len(report["runs"]),
+            "episodes": sum(run["totals"]["episodes"] for run in report["runs"]),
+            "frames": sum(run["totals"]["frames"] for run in report["runs"]),
+            "events": total_events,
+            "counts": summary_counts,
+        }
+    else:
+        report = run_stream(stream)
+        totals = report["totals"]
     payload = to_debug_json(report)
-    totals = report["totals"]
     if out is not None:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(payload + "\n", encoding="utf-8")

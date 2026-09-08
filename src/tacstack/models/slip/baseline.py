@@ -71,6 +71,9 @@ class SlipBaseline:
     ContactBaseline.
     """
 
+    #: payload capabilities this model can consume (any-of semantics)
+    accepted_capabilities = frozenset({"tactile_image", "taxel_force"})
+
     def __init__(
         self,
         *,

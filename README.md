@@ -20,7 +20,9 @@ opt-in extras). Phase 3 is done: `for event in runtime.events(...)` drives
 built-in heuristic contact / slip baselines through both the builtin scorer
 and ONNX scoring artifacts (onnxruntime backend, artifact/manifest
 separation; deterministic threshold models — not learned), and `tacstack
-benchmark` produces reproducible per-episode reports. The ROS2
+benchmark` produces reproducible per-episode reports. Phase 4 is in progress:
+two-level capability validation, the `dataset quality` health report and
+per-stream benchmark grouping are in. The ROS2
 integration and live sensors are not implemented yet. The bundled dataset
 fixture is synthetic; its layout mirrors the real releases (see
 `tests/fixtures/README.md`).

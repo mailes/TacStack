@@ -50,7 +50,13 @@ CLI：
 uv run tacstack dataset list <tar-or-dir>
 uv run tacstack dataset inspect <tar-or-dir> --task <task> --episode 0
 uv run tacstack dataset convert <tar-or-dir> --task <task> --episode 0 --out demo.mcap
+uv run tacstack dataset quality <tar-or-dir> --task <task> [--max-frames N]
 ```
+
+`quality`（Phase 4）输出任务健康报告：episode 数与长度统计、时间戳单调性与
+步长集合、逐触觉流的 nonfinite 计数。离线归档里数组完整性是 zarr 结构保证的
+（不存在丢帧），丢帧/抖动指标属于 live adapter（Phase 5）；`--max-frames`
+限制真实数据集的扫描成本。
 
 一个归档通常含多个 task（如 VLA_touch 内含 6 个 `<task>.zarr`），`list` 先看
 清单；多 task 时 `inspect` / `convert` 必须传 `--task`。

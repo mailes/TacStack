@@ -25,7 +25,11 @@ for event in runtime.events(observations(adapter)):
   已知帧率时按 `ceil(window_ms / 1000 * rate_hz)` 推导帧数）；
 - 事件上的 `latency_ms` 是产出它的 `infer` 调用的墙钟时长（模型自测，Runtime 以同一
   测量重新标注，调用方只有一个定义）；
-- 一个 Runtime 实例对应一个模型 × 一条流（事件状态机在模型实例内，不跨流共享）。
+- 一个 Runtime 实例对应一个模型 × 一条流（事件状态机在模型实例内，不跨流共享）；
+- capability 校验在每条流的首帧执行，两级语义：`manifest.required_capabilities`
+  为 **all-of**（逐项必须具备）；模型可选的 `accepted_capabilities` 为 **any-of**
+  （与传感器能力至少相交一项）。内置与 ONNX 模型均声明
+  `{tactile_image, taxel_force}`。
 
 ## 已实现：内置 baseline 模型
 

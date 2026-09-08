@@ -32,11 +32,17 @@ class Runtime:
 
     One Runtime instance drives one model over one stream: models keep their
     event state machines per instance, and the window is per stream too.
+
+    Capability checks run once per stream on the first observation:
+    ``manifest.required_capabilities`` is all-of (every listed capability
+    must be present), while a model's optional ``accepted_capabilities`` is
+    any-of (at least one intersection with the sensor's capabilities).
     """
 
     def __init__(self, model: TactileModel, *, window_frames: int = 2) -> None:
         self._model = model
         self._buffer = WindowBuffer(window_frames)
+        self._validated_sensors: set[str] = set()
 
     @property
     def model(self) -> TactileModel:
@@ -46,8 +52,30 @@ class Runtime:
     def window_frames(self) -> int:
         return self._buffer.size
 
+    def _validate_sensor(self, observation: TactileObservation) -> None:
+        sensor = observation.sensor
+        if sensor.sensor_id in self._validated_sensors:
+            return
+        manifest = self._model.manifest
+        missing = manifest.required_capabilities - sensor.capabilities
+        if missing:
+            raise ValueError(
+                f"stream {sensor.sensor_id!r} is missing required capabilities: "
+                f"{', '.join(sorted(missing))} "
+                f"(manifest requires all of {sorted(manifest.required_capabilities)})"
+            )
+        accepted: frozenset[str] = getattr(self._model, "accepted_capabilities", frozenset())
+        if accepted and not accepted & sensor.capabilities:
+            raise ValueError(
+                f"stream {sensor.sensor_id!r} capabilities "
+                f"{sorted(sensor.capabilities)} do not intersect this model's "
+                f"accepted capabilities {sorted(accepted)}"
+            )
+        self._validated_sensors.add(sensor.sensor_id)
+
     def process(self, observation: TactileObservation) -> list[TactileEvent]:
         """Push one observation and return the events the model emits for it."""
+        self._validate_sensor(observation)
         self._buffer.push(observation)
         started = perf_counter()
         events = self._model.infer(self._buffer.window())

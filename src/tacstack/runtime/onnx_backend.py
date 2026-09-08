@@ -143,6 +143,9 @@ def _score(session: Any, observation: TactileObservation, feed_names: Sequence[s
 class OnnxContactModel:
     """Contact scoring from an ONNX artifact + the shared hysteresis machine."""
 
+    #: payload capabilities this model can consume (any-of semantics)
+    accepted_capabilities = frozenset({"tactile_image", "taxel_force"})
+
     def __init__(
         self,
         artifact: str | Path,
@@ -203,6 +206,9 @@ class OnnxContactModel:
 
 class OnnxSlipModel:
     """Slip scoring from an ONNX artifact + the shared rising-edge tracker."""
+
+    #: payload capabilities this model can consume (any-of semantics)
+    accepted_capabilities = frozenset({"tactile_image", "taxel_force"})
 
     def __init__(
         self,
