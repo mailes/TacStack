@@ -27,6 +27,9 @@ tacstack = "tacstack.cli.main:app"
 rerun = [
     "rerun-sdk>=0.23",
 ]
+annotate = [
+    "pyarrow>=14,<26",
+]
 
 [dependency-groups]
 dev = [
@@ -35,6 +38,7 @@ dev = [
     "mypy>=1.15,<2",
     "pre-commit>=4,<5",
     "rerun-sdk>=0.23",
+    "pyarrow>=14,<26",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -61,6 +65,12 @@ files = ["src"]
 # mcap ships py.typed, but its layout trips mypy's module dedup on Windows
 # ("source file found twice"); we only consume its public Writer API.
 module = "mcap.*"
+follow_imports = "skip"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# pyarrow ships no py.typed marker; we only use its stable table read/write API.
+module = "pyarrow.*"
 follow_imports = "skip"
 ignore_missing_imports = true
 

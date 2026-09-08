@@ -2,13 +2,14 @@
 
 import json
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import typer
 
 from tacstack import __version__
 from tacstack.adapters.base import observations
 from tacstack.adapters.open_x_tactile import OpenXTactileAdapter, OpenXTactileArchive
+from tacstack.annotations import SCHEMA_VERSION, AnnotationLog, TactileMark, normalize_mark, now_ns
 from tacstack.core import TactileEvent
 from tacstack.core.serialization import to_debug_json
 from tacstack.integrations.mcap import observation_record, write_episode_mcap
@@ -18,6 +19,8 @@ dataset_app = typer.Typer(
     no_args_is_help=True, help="Inspect and convert Open-X-Tactile (FTP-1) archives."
 )
 app.add_typer(dataset_app, name="dataset")
+annotate_app = typer.Typer(no_args_is_help=True, help="C/S/U marks stored as Parquet.")
+app.add_typer(annotate_app, name="annotate")
 
 
 @app.command()
@@ -179,6 +182,9 @@ def replay(
     connect: str | None = typer.Option(
         None, "--connect", help="Stream to a running viewer (grpc url)."
     ),
+    annotations: Path | None = typer.Option(
+        None, "--annotations", help="Annotations Parquet file; matching marks are logged."
+    ),
 ) -> None:
     """Replay one tactile episode to Rerun on synchronized timelines.
 
@@ -202,14 +208,130 @@ def replay(
     if viewer:
         replay_logger.spawn()
     frames = 0
+    resolved_task = resolved_stream = ""
     try:
+        # descriptor.sensor_id is "oxt:<task>:<stream>" (built by the adapter)
+        sensor_parts = adapter.descriptor().sensor_id.split(":")
+        if len(sensor_parts) == 3:
+            resolved_task, resolved_stream = sensor_parts[1], sensor_parts[2]
         for observation in observations(adapter):
             replay_logger.log_observation(observation)
             frames += 1
     finally:
         adapter.close()
         replay_logger.flush()
-    typer.echo(f"logged {frames} observations to rerun")
+    annotated = 0
+    if annotations is not None:
+        annotated = _log_matching_annotations(
+            replay_logger, annotations, resolved_task, episode, resolved_stream
+        )
+    message = f"logged {frames} observations to rerun"
+    if annotations is not None:
+        message += f" and {annotated} annotations"
+    typer.echo(message)
+
+
+def _log_matching_annotations(
+    replay_logger: Any,
+    annotations: Path,
+    resolved_task: str,
+    episode: int,
+    resolved_stream: str,
+) -> int:
+    try:
+        mark_log = AnnotationLog(annotations)
+    except (OSError, RuntimeError, ValueError) as error:
+        _fail(error)
+    matched = 0
+    for mark in mark_log.marks():
+        if (
+            mark.task == resolved_task
+            and mark.episode == episode
+            and mark.stream == resolved_stream
+        ):
+            replay_logger.log_annotation(mark)
+            matched += 1
+    return matched
+
+
+@annotate_app.command("add")
+def annotate_add(
+    source: Path = typer.Argument(
+        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+    ),
+    frame: int = typer.Option(..., min=0, help="Episode-relative frame number to mark."),
+    mark: str = typer.Option(
+        ..., help="C=contact, S=slip, U=unstable grasp (full words also accepted)."
+    ),
+    user: str = typer.Option(..., help="Annotator name stored with the mark."),
+    task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
+    episode: int = typer.Option(0, min=0, help="Episode index."),
+    stream: str | None = typer.Option(
+        None, help="Tactile stream name; optional when the task has one."
+    ),
+    out: Path = typer.Option(
+        Path("annotations.parquet"), help="Parquet file to create or append to."
+    ),
+) -> None:
+    """Mark one frame of one episode and append it to the Parquet log."""
+    try:
+        code = normalize_mark(mark)
+    except ValueError as error:
+        _fail(error)
+    adapter = _open_episode_adapter(source, task, episode, stream, None)
+    timestamp_ns: int | None = None
+    oxt_index = 0
+    stream_name = ""
+    task_name = ""
+    try:
+        sensor_parts = adapter.descriptor().sensor_id.split(":")
+        if len(sensor_parts) == 3:
+            task_name = sensor_parts[1]
+        stream_name = adapter.descriptor().frame_id
+        for position, observation in enumerate(observations(adapter)):
+            if position == frame:
+                timestamp_ns = observation.timestamp_ns
+                oxt_index = int(observation.metadata.get("oxt_frame_index", position))
+                break
+    finally:
+        adapter.close()
+    if timestamp_ns is None:
+        _fail(ValueError(f"frame {frame} is out of range for this episode"))
+    entry = TactileMark(
+        source=str(source),
+        task=task_name,
+        episode=episode,
+        stream=stream_name,
+        frame_index=frame,
+        oxt_frame_index=oxt_index,
+        timestamp_ns=timestamp_ns,
+        mark=code,
+        user=user,
+        created_ns=now_ns(),
+    )
+    log = AnnotationLog(out)
+    log.add(entry)
+    typer.echo(
+        f"marked {stream_name} frame {frame} as {code} ({entry.label}); {len(log)} marks in {out}"
+    )
+
+
+@annotate_app.command("show")
+def annotate_show(
+    path: Path = typer.Argument(..., exists=True, readable=True, help="Annotations Parquet file."),
+) -> None:
+    """Print all marks stored in an annotations Parquet file."""
+    try:
+        log = AnnotationLog(path)
+    except (OSError, RuntimeError, ValueError) as error:
+        _fail(error)
+    for mark in log.marks():
+        typer.echo(
+            f"{mark.mark} {mark.task} ep{mark.episode} {mark.stream} "
+            f"frame={mark.frame_index} (oxt {mark.oxt_frame_index}, "
+            f"t={mark.timestamp_ns}ns) by {mark.user}"
+        )
+    typer.echo(f"{len(log)} marks, schema {SCHEMA_VERSION}")
 
 
 if __name__ == "__main__":

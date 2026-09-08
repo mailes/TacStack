@@ -79,7 +79,28 @@ uv run tacstack replay <tar-or-dir> --task <task> --episode 0 --stream <stream> 
   向量型 taxel（如六轴 F/T）出 `fx..tz` 标量序列（仅展示标签，不改负载语义）；
   `raw` 小数组出逐分量标量序列，HxWxC（`--extra-array` 选入的相机）出 Image，
   更大数组出 Tensor；字符串只在变化时记 TextDocument。
-- 多个 Adapter 可以先后灌进同一个 `RerunReplay` 录制，多流共享时间轴。
+- 多个 Adapter 可以先后灌进同一个 `RerunReplay` 录制，多流共享时间轴；
+  `flush()` 时发送自描述 blueprint，布局只包含本录制真正 log 过的实体。
+
+## 标注（tacstack annotate，Phase 2）
+
+轻量 C/S/U 标记（C = contact、S = slip、U = unstable grasp），存为 Parquet
+（schema `tacstack.annotations.v1`，带 user / created_ns / schema_version 溯源）：
+
+```bash
+uv sync --extra annotate
+uv run tacstack annotate add <tar-or-dir> --task <task> --episode 1 \
+    --stream <stream> --frame 6 --mark S --user mqh --out annotations.parquet
+uv run tacstack annotate show annotations.parquet
+```
+
+- `--mark` 接受 C/S/U 或全称（contact / slip / unstable_grasp）；
+- 每行同时存 episode 内帧号（`frame_index`）、源数组绝对帧号
+  （`oxt_frame_index`，与 Rerun `frame_index` 时间轴一致）和适配器时间戳；
+- 追加式日志：`AnnotationLog` 打开时重载已有行，标注与回放可交错进行；
+- `tacstack replay --annotations annotations.parquet` 把匹配
+  task / episode / stream 的标记放回时间轴（`annotations/<mark>` 实体，
+  blueprint 的 Tensors & Text 行）——"标记后重新加载查看"闭环。
 
 golden fixture 与真实布局的对应关系见 `tests/fixtures/README.md`。
 

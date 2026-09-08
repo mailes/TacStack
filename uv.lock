@@ -797,6 +797,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+annotate = [
+    { name = "pyarrow" },
+]
 rerun = [
     { name = "rerun-sdk" },
 ]
@@ -805,6 +808,7 @@ rerun = [
 dev = [
     { name = "mypy" },
     { name = "pre-commit" },
+    { name = "pyarrow" },
     { name = "pytest" },
     { name = "rerun-sdk" },
     { name = "ruff" },
@@ -814,16 +818,18 @@ dev = [
 requires-dist = [
     { name = "mcap", specifier = ">=1.2,<2" },
     { name = "numpy", specifier = ">=2,<3" },
+    { name = "pyarrow", marker = "extra == 'annotate'", specifier = ">=14,<26" },
     { name = "rerun-sdk", marker = "extra == 'rerun'", specifier = ">=0.23" },
     { name = "typer", specifier = ">=0.15,<1" },
     { name = "zarr", specifier = ">=3,<4" },
 ]
-provides-extras = ["rerun"]
+provides-extras = ["rerun", "annotate"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.15,<2" },
     { name = "pre-commit", specifier = ">=4,<5" },
+    { name = "pyarrow", specifier = ">=14,<26" },
     { name = "pytest", specifier = ">=8,<10" },
     { name = "rerun-sdk", specifier = ">=0.23" },
     { name = "ruff", specifier = ">=0.11,<1" },

@@ -52,6 +52,158 @@ def test_dataset_inspect_rejects_out_of_range_episode() -> None:
     assert "error:" in result.stderr
 
 
+def test_replay_writes_rrd_and_logs_matching_annotations(tmp_path: Path) -> None:
+    from tacstack.annotations import AnnotationLog, TactileMark, now_ns
+
+    marks = tmp_path / "marks.parquet"
+    log = AnnotationLog(marks)
+    log.add(
+        TactileMark(
+            source=str(FIXTURE),
+            task="Wipe_Demo",
+            episode=0,
+            stream="right_gripper",
+            frame_index=2,
+            oxt_frame_index=2,
+            timestamp_ns=2_000_000_000,
+            mark="S",
+            user="tester",
+            created_ns=now_ns(),
+        )
+    )
+    out = tmp_path / "replay.rrd"
+    result = runner.invoke(
+        app,
+        [
+            "replay",
+            str(FIXTURE),
+            "--task",
+            "Wipe_Demo",
+            "--episode",
+            "0",
+            "--stream",
+            "right_gripper",
+            "--out",
+            str(out),
+            "--annotations",
+            str(marks),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "logged 10 observations" in result.output
+    assert "and 1 annotations" in result.output
+    assert out.stat().st_size > 0
+
+
+def test_replay_logs_no_annotations_when_stream_differs(tmp_path: Path) -> None:
+    from tacstack.annotations import AnnotationLog, TactileMark, now_ns
+
+    marks = tmp_path / "marks.parquet"
+    log = AnnotationLog(marks)
+    log.add(
+        TactileMark(
+            source=str(FIXTURE),
+            task="Wipe_Demo",
+            episode=0,
+            stream="other_stream",
+            frame_index=2,
+            oxt_frame_index=2,
+            timestamp_ns=2_000_000_000,
+            mark="C",
+            user="tester",
+            created_ns=now_ns(),
+        )
+    )
+    out = tmp_path / "replay.rrd"
+    result = runner.invoke(
+        app,
+        [
+            "replay",
+            str(FIXTURE),
+            "--task",
+            "Wipe_Demo",
+            "--episode",
+            "0",
+            "--stream",
+            "right_gripper",
+            "--out",
+            str(out),
+            "--annotations",
+            str(marks),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "and 0 annotations" in result.output
+
+
+def test_annotate_add_then_show(tmp_path: Path) -> None:
+    from tacstack.annotations import AnnotationLog
+
+    marks = tmp_path / "marks.parquet"
+    added = runner.invoke(
+        app,
+        [
+            "annotate",
+            "add",
+            str(FIXTURE),
+            "--task",
+            "Wipe_Demo",
+            "--episode",
+            "1",
+            "--stream",
+            "right_gripper",
+            "--frame",
+            "6",
+            "--mark",
+            "slip",
+            "--user",
+            "tester",
+            "--out",
+            str(marks),
+        ],
+    )
+    assert added.exit_code == 0, added.output
+    assert "marked right_gripper frame 6 as S (slip); 1 marks" in added.output
+    # Wipe_Demo episode ends are [10, 25, 40]: frame 6 of episode 1 is
+    # absolute frame 10 + 6 = 16, timestamp 16s
+    stored = AnnotationLog(marks).marks()[0]
+    assert stored.oxt_frame_index == 16
+    assert stored.timestamp_ns == 16_000_000_000
+
+    shown = runner.invoke(app, ["annotate", "show", str(marks)])
+    assert shown.exit_code == 0, shown.output
+    assert "S Wipe_Demo ep1 right_gripper frame=6 (oxt 16" in shown.output
+    assert "1 marks, schema 1.0" in shown.output
+
+
+def test_annotate_add_rejects_out_of_range_frame(tmp_path: Path) -> None:
+    marks = tmp_path / "marks.parquet"
+    result = runner.invoke(
+        app,
+        [
+            "annotate",
+            "add",
+            str(FIXTURE),
+            "--task",
+            "Wipe_Demo",
+            "--episode",
+            "0",
+            "--stream",
+            "right_gripper",
+            "--frame",
+            "999",
+            "--mark",
+            "C",
+            "--user",
+            "tester",
+            "--out",
+            str(marks),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "out of range" in result.output
+
+
 def test_dataset_convert_round_trip(tmp_path: Path) -> None:
     out = tmp_path / "episode.mcap"
     result = runner.invoke(

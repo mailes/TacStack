@@ -29,6 +29,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
+from tacstack.annotations import TactileMark
 from tacstack.core import SensorDescriptor, TactileObservation
 from tacstack.core.serialization import to_debug_json
 
@@ -85,6 +86,14 @@ class RerunReplay:
         self._log_descriptor(root, observation.sensor)
         self._log_tactile(root, observation)
         self._log_raw(root, observation)
+
+    def log_annotation(self, mark: TactileMark) -> None:
+        """Place one annotation mark on the timelines (entity ``annotations/<mark>``)."""
+        path = f"annotations/{mark.mark}"
+        self._stream.set_time("timestamp", duration=np.timedelta64(mark.timestamp_ns, "ns"))
+        self._stream.set_time("frame_index", sequence=mark.oxt_frame_index)
+        self._text_entities.setdefault(path, None)
+        self._stream.log(path, rr.TextDocument(f"{mark.mark} {mark.label} ({mark.user})"))
 
     def _log_time(self, observation: TactileObservation) -> None:
         # np.timedelta64("ns") carries exact nanoseconds; a plain int would be
