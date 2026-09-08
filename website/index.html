@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.add("js");</script>
 <style>
   :root {
     --bg: #0a0c12;
@@ -261,12 +262,13 @@
   .foot-links a:hover { color: var(--text); }
   .foot-bottom { margin-top: 36px; font-size: 12.5px; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 
-  /* reveal on scroll */
-  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
-  .reveal.in { opacity: 1; transform: none; }
+  /* reveal on scroll - hidden only when JS is available (html.js), so the
+     page stays fully visible without JavaScript */
+  .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .reveal { opacity: 1; transform: none; transition: none; }
+    .js .reveal { opacity: 1; transform: none; transition: none; }
     .card, .btn { transition: none; }
   }
 
