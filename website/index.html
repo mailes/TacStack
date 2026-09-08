@@ -4,303 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TacStack — Cross-sensor tactile semantics for robotics</title>
-<meta name="description" content="TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — one contract for every tactile sensor.">
-<meta property="og:title" content="TacStack — One contract for every tactile sensor">
+<meta name="description" content="TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — shared interfaces for tactile applications.">
+<meta name="theme-color" content="#0a0c12">
+<link rel="canonical" href="https://mailes.github.io/TacStack/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://mailes.github.io/TacStack/">
+<meta property="og:site_name" content="TacStack">
+<meta property="og:title" content="TacStack — Tactile interfaces for robotics">
 <meta property="og:description" content="Cross-sensor tactile semantics and runtime for robotics. Open source, Apache-2.0.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d13'/%3E%3Ccircle cx='10' cy='10' r='3' fill='%2322d3ee'/%3E%3Ccircle cx='22' cy='10' r='3' fill='%2322d3ee' opacity='.55'/%3E%3Ccircle cx='10' cy='22' r='3' fill='%2322d3ee' opacity='.55'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%2322d3ee'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<script>document.documentElement.classList.add("js");</script>
-<style>
-  :root {
-    --bg: #0a0c12;
-    --bg-soft: #0e1119;
-    --surface: rgba(255, 255, 255, 0.03);
-    --surface-2: rgba(255, 255, 255, 0.05);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --text: #e7eaf0;
-    --muted: #99a1b3;
-    --faint: #6b7280;
-    --accent: #22d3ee;
-    --accent-2: #818cf8;
-    --green: #34d399;
-    --amber: #fbbf24;
-    --radius: 16px;
-    --font: "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  html[lang="zh-CN"] body { line-height: 1.75; }
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
-  ::selection { background: rgba(34, 211, 238, 0.25); }
-  a { color: inherit; text-decoration: none; }
-  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-  /* ---------- background decoration ---------- */
-  .backdrop {
-    position: fixed; inset: 0; z-index: -1; pointer-events: none;
-    background:
-      radial-gradient(600px 420px at 78% -5%, rgba(34, 211, 238, 0.10), transparent 65%),
-      radial-gradient(700px 500px at 12% 8%, rgba(129, 140, 248, 0.08), transparent 65%),
-      var(--bg);
-  }
-  .backdrop::after {
-    content: ""; position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-    background-size: 44px 44px;
-    mask-image: radial-gradient(900px 600px at 50% 0%, #000 0%, transparent 75%);
-    -webkit-mask-image: radial-gradient(900px 600px at 50% 0%, #000 0%, transparent 75%);
-  }
-
-  /* ---------- nav ---------- */
-  nav {
-    position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    background: rgba(10, 12, 18, 0.72);
-    border-bottom: 1px solid var(--border);
-  }
-  .nav-inner {
-    display: flex; align-items: center; gap: 28px;
-    height: 60px;
-  }
-  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-  .logo svg { display: block; }
-  .nav-links { display: flex; gap: 24px; margin-left: auto; align-items: center; }
-  .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
-  .nav-links a:hover { color: var(--text); }
-  .nav-gh {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 7px 14px; border-radius: 10px;
-    border: 1px solid var(--border-strong);
-    background: var(--surface-2); font-size: 14px; font-weight: 600;
-    transition: border-color .15s, background .15s;
-  }
-  .nav-gh:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.08); }
-  .lang-toggle {
-    display: inline-flex; overflow: hidden;
-    border: 1px solid var(--border-strong); border-radius: 10px;
-  }
-  .lang-toggle button {
-    font-family: var(--mono); font-size: 12px; padding: 7px 12px;
-    background: transparent; border: none; color: var(--muted);
-    cursor: pointer; transition: background .15s, color .15s;
-  }
-  .lang-toggle button.active { background: rgba(34, 211, 238, 0.13); color: var(--accent); }
-
-  /* ---------- hero ---------- */
-  .hero { padding: 96px 0 84px; }
-  .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: var(--mono); font-size: 12px; font-weight: 500;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 20px;
-  }
-  .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--accent); opacity: .7; }
-  h1 {
-    font-size: clamp(36px, 5.2vw, 56px); line-height: 1.12;
-    font-weight: 800; letter-spacing: -0.03em; margin-bottom: 22px;
-  }
-  h1 .grad {
-    background: linear-gradient(92deg, var(--accent) 0%, var(--accent-2) 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .hero p.lede { font-size: 18px; color: var(--muted); max-width: 520px; margin-bottom: 34px; }
-  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 9px;
-    padding: 12px 22px; border-radius: 12px;
-    font-size: 15px; font-weight: 600; border: 1px solid transparent;
-    transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
-  }
-  .btn-primary {
-    background: linear-gradient(135deg, #22d3ee, #6366f1);
-    color: #071016;
-    box-shadow: 0 8px 28px -8px rgba(34, 211, 238, 0.45);
-  }
-  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px -8px rgba(34, 211, 238, 0.55); }
-  .btn-ghost { border-color: var(--border-strong); background: var(--surface-2); color: var(--text); }
-  .btn-ghost:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.08); }
-  .hero-stats { display: flex; gap: 36px; margin-top: 46px; flex-wrap: wrap; }
-  .stat b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-  .stat span { font-size: 13px; color: var(--faint); }
-
-  /* ---------- hero visual ---------- */
-  .hero-visual { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-  .chip-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .chip {
-    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
-    border: 1px solid var(--border); background: var(--surface);
-    border-radius: 999px; padding: 7px 14px; white-space: nowrap;
-  }
-  .chip b { color: var(--text); font-weight: 600; }
-  .flow-arrow { color: var(--faint); font-size: 18px; line-height: 1; }
-  .hub {
-    position: relative; text-align: center;
-    border: 1px solid rgba(34, 211, 238, 0.35);
-    background: linear-gradient(180deg, rgba(34,211,238,0.08), rgba(129,140,248,0.05));
-    border-radius: var(--radius); padding: 20px 30px;
-    box-shadow: 0 0 60px -18px rgba(34, 211, 238, 0.35);
-  }
-  .hub .hub-title { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-  .hub .hub-sub { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-top: 4px; }
-  .event-pills { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  .pill {
-    font-family: var(--mono); font-size: 12.5px; border-radius: 999px; padding: 7px 14px;
-    border: 1px solid var(--border); background: var(--surface);
-  }
-  .pill b { font-weight: 600; }
-  .pill .ok { color: var(--green); }
-  .pill .warn { color: var(--amber); }
-
-  /* ---------- sections ---------- */
-  section { padding: 84px 0; scroll-margin-top: 76px; }
-  .section-head { max-width: 640px; margin-bottom: 44px; }
-  .section-head h2 { font-size: clamp(26px, 3.4vw, 34px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 12px; }
-  .section-head p { color: var(--muted); font-size: 16px; }
-
-  /* principles */
-  .principles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .card {
-    border: 1px solid var(--border); background: var(--surface);
-    border-radius: var(--radius); padding: 24px;
-    transition: transform .2s, border-color .2s, background .2s;
-  }
-  .card:hover { transform: translateY(-3px); border-color: rgba(34, 211, 238, 0.35); background: var(--surface-2); }
-  .card .icon {
-    width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-    background: rgba(34, 211, 238, 0.10); border: 1px solid rgba(34, 211, 238, 0.22);
-    color: var(--accent); margin-bottom: 16px;
-  }
-  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.01em; }
-  .card p { font-size: 14px; color: var(--muted); }
-
-  /* pipeline */
-  .pipeline-wrap { border: 1px solid var(--border); border-radius: 20px; background: var(--surface); padding: 36px 28px; }
-  .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-  .stage { position: relative; text-align: center; padding: 0 4px; }
-  .stage:not(:last-child)::after {
-    content: "→"; position: absolute; right: -12px; top: 42px;
-    color: var(--faint); font-size: 15px;
-  }
-  .stage-dot {
-    width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px;
-    display: grid; place-items: center;
-    background: rgba(34, 211, 238, 0.08); border: 1px solid rgba(34, 211, 238, 0.22);
-    color: var(--accent); font-family: var(--mono); font-weight: 600; font-size: 15px;
-  }
-  .stage h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 6px; }
-  .stage p { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
-  .stage code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
-
-  /* sensors */
-  .sensor-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .sensor-table th {
-    text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--faint); background: var(--surface-2); padding: 14px 20px; border-bottom: 1px solid var(--border);
-  }
-  .sensor-table td { padding: 18px 20px; border-bottom: 1px solid var(--border); font-size: 14.5px; vertical-align: top; }
-  .sensor-table tr:last-child td { border-bottom: none; }
-  .sensor-table tr:hover td { background: rgba(255,255,255,0.02); }
-  .sensor-table .name { font-weight: 600; white-space: nowrap; }
-  .sensor-table .name span { display: block; font-weight: 400; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
-  .sensor-table .mono { font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
-    border-radius: 999px; padding: 4px 11px; white-space: nowrap;
-  }
-  .badge-ok { color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.08); }
-  .badge-soon { color: var(--amber); border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.07); }
-  .sensor-note { margin-top: 16px; font-size: 13.5px; color: var(--faint); }
-
-  /* roadmap */
-  .timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .phase { border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; background: var(--surface); }
-  .phase.current { border-color: rgba(34, 211, 238, 0.4); background: linear-gradient(180deg, rgba(34,211,238,0.06), rgba(255,255,255,0.02)); }
-  .phase-tag {
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em;
-    display: inline-block; margin-bottom: 12px;
-  }
-  .phase.done .phase-tag { color: var(--green); }
-  .phase.current .phase-tag { color: var(--accent); }
-  .phase.next .phase-tag { color: var(--faint); }
-  .phase h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-  .phase p { font-size: 13.5px; color: var(--muted); }
-
-  /* quickstart */
-  .qs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .code-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #0c0e15; }
-  .code-card .bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
-  }
-  .code-card .bar span { font-family: var(--mono); font-size: 12px; color: var(--faint); }
-  .copy {
-    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
-    border: 1px solid var(--border); background: transparent; border-radius: 7px;
-    padding: 4px 10px; cursor: pointer; transition: color .15s, border-color .15s;
-  }
-  .copy:hover { color: var(--text); border-color: var(--border-strong); }
-  .code-card pre { padding: 18px 20px; overflow-x: auto; }
-  .code-card code { font-family: var(--mono); font-size: 13.5px; line-height: 1.75; color: #c9d1d9; }
-  .tok-c { color: #5b6472; }
-  .tok-p { color: var(--accent); }
-  .tok-s { color: #a5d6ff; }
-  .tok-k { color: var(--accent-2); }
-
-  /* footer */
-  footer { border-top: 1px solid var(--border); padding: 44px 0 56px; margin-top: 40px; }
-  .foot { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-  .foot .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-  .foot p { font-size: 13.5px; color: var(--faint); margin-top: 10px; max-width: 380px; }
-  .foot-links { display: flex; gap: 40px; }
-  .foot-links div { display: flex; flex-direction: column; gap: 10px; }
-  .foot-links b { font-size: 13px; color: var(--muted); font-weight: 600; }
-  .foot-links a { font-size: 13.5px; color: var(--faint); transition: color .15s; }
-  .foot-links a:hover { color: var(--text); }
-  .foot-bottom { margin-top: 36px; font-size: 12.5px; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-
-  /* reveal on scroll - hidden only when JS is available (html.js), so the
-     page stays fully visible without JavaScript */
-  .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
-  .js .reveal.in { opacity: 1; transform: none; }
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    .js .reveal { opacity: 1; transform: none; transition: none; }
-    .card, .btn { transition: none; }
-  }
-
-  /* responsive */
-  @media (max-width: 920px) {
-    .hero { padding: 64px 0 64px; }
-    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
-    .principles { grid-template-columns: repeat(2, 1fr); }
-    .pipeline { grid-template-columns: 1fr; gap: 22px; }
-    .stage:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -20px; transform: translateX(50%); }
-    .timeline { grid-template-columns: 1fr; }
-    .qs-grid { grid-template-columns: 1fr; }
-    .nav-links a:not(.nav-gh) { display: none; }
-    .sensor-table { display: block; overflow-x: auto; }
-  }
-</style>
+<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+<a class="skip-link" href="#main" data-i18n="skip">Skip to content</a>
 <div class="backdrop"></div>
 
-<nav>
+<nav aria-label="Main navigation">
   <div class="container nav-inner">
     <a class="logo" href="#top" aria-label="TacStack home">
       <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -312,15 +32,16 @@
       </svg>
       TacStack
     </a>
-    <div class="nav-links">
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav-links" data-i18n="nav.menu">Menu</button>
+    <div class="nav-links" id="nav-links">
       <a href="#principles" data-i18n="nav.principles">Principles</a>
       <a href="#pipeline" data-i18n="nav.pipeline">Pipeline</a>
       <a href="#sensors" data-i18n="nav.sensors">Sensors</a>
       <a href="#roadmap" data-i18n="nav.roadmap">Roadmap</a>
       <a href="#quickstart" data-i18n="nav.quickstart">Quick start</a>
       <div class="lang-toggle" role="group" aria-label="Language">
-        <button type="button" data-lang="en" class="active">EN</button>
-        <button type="button" data-lang="zh">中文</button>
+        <button type="button" data-lang="en" class="active" aria-pressed="true" lang="en">EN</button>
+        <button type="button" data-lang="zh" aria-pressed="false" lang="zh-CN">中文</button>
       </div>
       <a class="nav-gh" href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -336,12 +57,8 @@
   <div class="container hero-grid">
     <div>
       <div class="eyebrow" data-i18n="hero.eyebrow">Open source · Apache-2.0 · Python 3.12+</div>
-      <h1 data-i18n="hero.h1">One contract for<br>every <span class="grad">tactile sensor</span>.</h1>
-      <p class="lede" data-i18n="hero.lede">
-        TacStack is a cross-sensor tactile semantics and runtime for robotics.
-        Raw data stays intact; a unified Observation, model interface and Event
-        contract sits on top — so bringing up a new sensor costs hours, not weeks.
-      </p>
+      <h1 data-i18n="hero.h1">One interface.<br>Many sensors.<br><span class="grad">A sense of touch.</span></h1>
+      <p class="lede" data-i18n="hero.lede">Build with tactile images, taxel arrays and force/torque data through a shared interface. Preserve the raw signal. Run contact and slip baselines. Replay, inspect and benchmark locally.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#quickstart" data-i18n="hero.cta1">Get started</a>
         <a class="btn btn-ghost" href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">
@@ -349,35 +66,35 @@
           <span data-i18n="hero.cta2">View source</span>
         </a>
       </div>
+      <p class="hero-status"><span class="status-dot" aria-hidden="true"></span><span data-i18n="hero.status">Offline pipeline ready · Hardware validation next</span></p>
       <div class="hero-stats">
-        <div class="stat"><b>4</b><span data-i18n="hero.stat1">sensor codecs verified</span></div>
-        <div class="stat"><b>3</b><span data-i18n="hero.stat2">tactile modalities unified</span></div>
-        <div class="stat"><b>0</b><span data-i18n="hero.stat3">heavy deps in core</span></div>
+        <div class="stat"><b>4</b><span data-i18n="hero.stat1">sensor protocol codecs</span></div>
+        <div class="stat"><b>3</b><span data-i18n="hero.stat2">input modalities</span></div>
+        <div class="stat"><b>0</b><span data-i18n="hero.stat3">cloud required</span></div>
       </div>
     </div>
-    <div class="hero-visual" aria-hidden="true">
-      <div class="chip-row">
-        <span class="chip" data-i18n="hero.chip1"><b>GelSight</b> · image</span>
-        <span class="chip" data-i18n="hero.chip2"><b>uSkin</b> · 4×4 taxels</span>
-        <span class="chip" data-i18n="hero.chip3"><b>PX6D</b> · 6-axis F/T</span>
-        <span class="chip" data-i18n="hero.chip4"><b>PX3Q</b> · torque</span>
-      </div>
-      <div class="flow-arrow">↓&nbsp;&nbsp;↓&nbsp;&nbsp;↓</div>
-      <div class="hub">
-        <div class="hub-title">TactileObservation</div>
-        <div class="hub-sub" data-i18n="hero.hubsub">raw-first · one contract</div>
-      </div>
-      <div class="flow-arrow">↓</div>
-      <div class="event-pills">
-        <span class="pill"><b class="ok">contact_begin</b> · 0.98</span>
-        <span class="pill"><b class="warn">slip</b> · 0.41</span>
-        <span class="pill" data-i18n="hero.pill3"><b>TactileEvent</b> → timeline</span>
+    <div class="hero-visual">
+      <div class="visual-bar"><span data-i18n="visual.title">SIGNAL → SEMANTICS</span><span class="visual-index">TAC / 001</span></div>
+      <div class="visual-body">
+        <div class="signal-input">
+          <div class="taxel-map" aria-hidden="true"><span style="--level:0.07"></span><span style="--level:0.13"></span><span style="--level:0.17"></span><span style="--level:0.06"></span><span style="--level:0.14"></span><span style="--level:0.47"></span><span style="--level:0.8"></span><span style="--level:0.22"></span><span style="--level:0.17"></span><span style="--level:0.65"></span><span style="--level:1"></span><span style="--level:0.32"></span><span style="--level:0.08"></span><span style="--level:0.22"></span><span style="--level:0.34"></span><span style="--level:0.1"></span></div>
+          <div><span class="visual-label" data-i18n="visual.label">Illustrative taxel input</span><p data-i18n="visual.sub">Different inputs. A shared observation contract.</p></div>
+        </div>
+        <div class="chip-row">
+          <span class="chip" data-i18n="hero.chip1"><b>Image</b> · vision tactile</span>
+          <span class="chip" data-i18n="hero.chip2"><b>Array</b> · taxels</span>
+          <span class="chip" data-i18n="hero.chip3"><b>Wrench</b> · force / torque</span>
+        </div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="hub"><div class="hub-title">TactileObservation</div><div class="hub-sub" data-i18n="hero.hubsub">raw-first · one contract</div></div>
+        <div class="flow-arrow" aria-hidden="true">↓</div>
+        <div class="event-output"><div class="output-label" data-i18n="visual.output">Example event · not a live reading</div><code><span class="tok-c">kind</span> <span class="tok-p">"contact_begin"</span><br><span class="tok-c">sensor_id</span> "synthetic"<br><span class="tok-c">model_id</span> "contract-example"</code></div>
       </div>
     </div>
   </div>
 </header>
 
-<main>
+<main id="main">
   <section id="principles">
     <div class="container">
       <div class="section-head reveal">
@@ -388,7 +105,7 @@
         <div class="card reveal">
           <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
           <h3 data-i18n="pr.raw.h">Raw-first</h3>
-          <p data-i18n="pr.raw.p">Vendor payloads are preserved verbatim in raw / metadata. Nothing is normalized away at ingest.</p>
+          <p data-i18n="pr.raw.p">Keep source payloads and metadata alongside derived representations, so processing remains traceable.</p>
         </div>
         <div class="card reveal">
           <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg></div>
@@ -403,7 +120,7 @@
         <div class="card reveal">
           <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 11l10-5M7 13l10 5"/></svg></div>
           <h3 data-i18n="pr.int.h">Integration-first</h3>
-          <p data-i18n="pr.int.p">Reuse the ecosystems that already work: MCAP, Foxglove, Rerun. Heavy dependencies stay opt-in.</p>
+          <p data-i18n="pr.int.p">Record with MCAP, inspect with Rerun and connect to existing tools. ROS2 and LeRobot integrations are planned.</p>
         </div>
       </div>
     </div>
@@ -412,8 +129,8 @@
   <section id="pipeline">
     <div class="container">
       <div class="section-head reveal">
-        <h2 data-i18n="sec.pipeline.h">From raw episodes to robot-ready events</h2>
-        <p data-i18n="sec.pipeline.p">The offline loop runs end to end today — every stage is a tested, documented contract.</p>
+        <h2 data-i18n="sec.pipeline.h">From a raw signal to a useful event.</h2>
+        <p data-i18n="sec.pipeline.p">An offline workflow for developing and evaluating tactile applications, with the original data kept alongside derived outputs.</p>
       </div>
       <div class="pipeline-wrap reveal">
         <div class="pipeline">
@@ -425,7 +142,7 @@
           <div class="stage">
             <div class="stage-dot">02</div>
             <h4 data-i18n="st2.h">Observation</h4>
-            <p data-i18n="st2.p"><code>TactileObservation</code> — image streams, taxel matrices, wrench in one shape.</p>
+            <p data-i18n="st2.p"><code>TactileObservation</code> — shared metadata, sensor-specific arrays and raw payloads.</p>
           </div>
           <div class="stage">
             <div class="stage-dot">03</div>
@@ -450,16 +167,17 @@
   <section id="sensors">
     <div class="container">
       <div class="section-head reveal">
-        <h2 data-i18n="sec.sensors.h">Sensor protocols, verified against the manuals</h2>
-        <p data-i18n="sec.sensors.p">Each codec is golden-tested byte-for-byte against worked frames from its vendor manual — no hardware required to develop against it.</p>
+        <h2 id="sensor-heading" data-i18n="sec.sensors.h">Software ready. Hardware is next.</h2>
+        <p data-i18n="sec.sensors.p">Four protocol codecs have tests based on vendor manual examples. Live acquisition and real-world stability will be verified when the sensors arrive.</p>
       </div>
+      <div class="table-scroll" role="region" aria-labelledby="sensor-heading" tabindex="0">
       <table class="sensor-table reveal">
         <thead>
           <tr>
-            <th data-i18n="sn.th1">Sensor</th>
-            <th data-i18n="sn.th2">Output</th>
-            <th data-i18n="sn.th3">Link</th>
-            <th data-i18n="sn.th4">Status</th>
+            <th scope="col" data-i18n="sn.th1">Sensor</th>
+            <th scope="col" data-i18n="sn.th2">Output</th>
+            <th scope="col" data-i18n="sn.th3">Link</th>
+            <th scope="col" data-i18n="sn.th4">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -489,10 +207,10 @@
           </tr>
         </tbody>
       </table>
+      </div>
       <p class="sensor-note reveal">
-        <span data-i18n="sn.note">Live serial adapters, record / replay / inference over real hardware and a
-        30-minute stability run are the Phase 5 deliverables —</span>
-        <span class="badge badge-soon" data-i18n="sn.badgeSoon">live adapters · awaiting hardware</span>
+        <span data-i18n="sn.note">PX6D / PX3Q response CRC validation remains open until hardware captures are available. Protocol tests do not establish live sensor performance.</span>
+        <span class="badge badge-soon" data-i18n="sn.badgeSoon">Hardware testing pending</span>
       </p>
     </div>
   </section>
@@ -511,12 +229,12 @@
         </div>
         <div class="phase done reveal">
           <span class="phase-tag" data-i18n="ph2.tag">PHASE 3 · DONE</span>
-          <h4 data-i18n="ph2.h">Runtime &amp; benchmark</h4>
-          <p data-i18n="ph2.p">Contact / slip baselines with builtin and ONNX scoring backends; reproducible per-episode benchmark reports.</p>
+          <h4 data-i18n="ph2.h">Runtime & benchmark</h4>
+          <p data-i18n="ph2.p">Builtin and ONNX scoring backends, temporal contact / slip baselines and repeatable reports. Model-quality evaluation requires labeled data.</p>
         </div>
         <div class="phase done reveal">
           <span class="phase-tag" data-i18n="ph3.tag">PHASE 4 · DONE</span>
-          <h4 data-i18n="ph3.h">Quality &amp; calibration</h4>
+          <h4 data-i18n="ph3.h">Quality & calibration</h4>
           <p data-i18n="ph3.p">Two-level capability validation, dataset quality health reports, calibration provenance, per-stream benchmark grouping.</p>
         </div>
         <div class="phase current reveal">
@@ -536,26 +254,27 @@
   <section id="quickstart">
     <div class="container">
       <div class="section-head reveal">
-        <h2 data-i18n="sec.qs.h">Up and running in one minute</h2>
-        <p data-i18n="sec.qs.p">Python 3.12+ and <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener" style="color:var(--accent)">uv</a>. Install from source; no PyPI package yet.</p>
+        <h2 data-i18n="sec.qs.h">Start with a working offline demo.</h2>
+        <p data-i18n="sec.qs.p">Python 3.12+ and <a href="https://docs.astral.sh/uv/">uv</a>. Install from source, then explore the bundled synthetic fixture. No sensor or dataset download needed.</p>
       </div>
+      <p class="qs-note" data-i18n="qs.note">The bundled fixture and the event below are synthetic. Use your own recordings to evaluate model behavior. Not yet published on PyPI.</p>
       <div class="qs-grid">
         <div class="code-card reveal">
-          <div class="bar"><span>terminal</span><button class="copy" data-copy="quickstart-cmds" data-i18n="qs.copy">copy</button></div>
+          <div class="bar"><span>terminal</span><button type="button" class="copy" data-copy="quickstart-cmds" data-i18n="qs.copy">copy</button></div>
           <pre><code id="quickstart-cmds" data-i18n="qs.terminal"><span class="tok-c"># clone and install (uv manages everything)</span>
 git clone https://github.com/mailes/TacStack.git
 cd TacStack
-uv sync
+uv sync --extra rerun
 
 <span class="tok-c"># guided tour — no data download, no hardware</span>
 <span class="tok-p">uv run</span> tacstack demo
 
-<span class="tok-c"># replay a real episode layout into Rerun</span>
+<span class="tok-c"># replay the bundled synthetic fixture in Rerun</span>
 <span class="tok-p">uv run</span> tacstack replay \
   tests/fixtures/open_x_tactile/demo_wipe.tar --viewer</code></pre>
         </div>
         <div class="code-card reveal">
-          <div class="bar"><span>contract_example.py</span><button class="copy" data-copy="quickstart-code" data-i18n="qs.copy">copy</button></div>
+          <div class="bar"><span>contract_example.py</span><button type="button" class="copy" data-copy="quickstart-code" data-i18n="qs.copy">copy</button></div>
           <pre><code id="quickstart-code"><span class="tok-k">from</span> tacstack <span class="tok-k">import</span> TactileEvent
 
 sample = TactileEvent(
@@ -604,266 +323,13 @@ sample = TactileEvent(
       </div>
     </div>
     <div class="foot-bottom">
-      <span data-i18n="foot.bottom1">© <span id="year">2026</span> TacStack contributors. Apache-2.0 — dataset, model and third-party SDK licenses verified separately.</span>
+      <span data-i18n="foot.bottom1">© <span id="year">2026</span> TacStack contributors · Apache-2.0</span>
       <span data-i18n="foot.bottom2">Built for robots that feel.</span>
     </div>
   </div>
 </footer>
+<p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
 
-<script>
-  // ----- i18n: English + 简体中文, auto-detected from the browser language,
-  // switchable via the nav toggle, persisted in localStorage -----
-  var I18N = {
-    en: {
-      "meta.title": "TacStack — Cross-sensor tactile semantics for robotics",
-      "meta.desc": "TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — one contract for every tactile sensor.",
-      "nav.principles": "Principles",
-      "nav.pipeline": "Pipeline",
-      "nav.sensors": "Sensors",
-      "nav.roadmap": "Roadmap",
-      "nav.quickstart": "Quick start",
-      "hero.eyebrow": "Open source · Apache-2.0 · Python 3.12+",
-      "hero.h1": "One contract for<br>every <span class=\"grad\">tactile sensor</span>.",
-      "hero.lede": "TacStack is a cross-sensor tactile semantics and runtime for robotics. Raw data stays intact; a unified Observation, model interface and Event contract sits on top — so bringing up a new sensor costs hours, not weeks.",
-      "hero.cta1": "Get started",
-      "hero.cta2": "View source",
-      "hero.stat1": "sensor codecs verified",
-      "hero.stat2": "tactile modalities unified",
-      "hero.stat3": "heavy deps in core",
-      "hero.chip1": "<b>GelSight</b> · image",
-      "hero.chip2": "<b>uSkin</b> · 4×4 taxels",
-      "hero.chip3": "<b>PX6D</b> · 6-axis F/T",
-      "hero.chip4": "<b>PX3Q</b> · torque",
-      "hero.hubsub": "raw-first · one contract",
-      "hero.pill3": "<b>TactileEvent</b> → timeline",
-      "sec.principles.h": "Principles that hold the stack together",
-      "sec.principles.p": "Four commitments, applied to every adapter, model and integration decision.",
-      "pr.raw.h": "Raw-first",
-      "pr.raw.p": "Vendor payloads are preserved verbatim in raw / metadata. Nothing is normalized away at ingest.",
-      "pr.sem.h": "Semantics-first",
-      "pr.sem.p": "One Observation and Event contract spans sensors and modalities — images, taxel matrices, force/torque.",
-      "pr.edge.h": "Edge-first",
-      "pr.edge.p": "Core depends on neither ROS2, cloud services nor training frameworks. Runs where the robot runs.",
-      "pr.int.h": "Integration-first",
-      "pr.int.p": "Reuse the ecosystems that already work: MCAP, Foxglove, Rerun. Heavy dependencies stay opt-in.",
-      "sec.pipeline.h": "From raw episodes to robot-ready events",
-      "sec.pipeline.p": "The offline loop runs end to end today — every stage is a tested, documented contract.",
-      "st1.h": "Dataset",
-      "st1.p": "Open-X-Tactile tar / zarr episodes; MCAP replay for recorded runs.",
-      "st2.h": "Observation",
-      "st2.p": "<code>TactileObservation</code> — image streams, taxel matrices, wrench in one shape.",
-      "st3.h": "Runtime",
-      "st3.p": "Contact / slip baselines via builtin scorers or ONNX artifacts.",
-      "st4.h": "Events",
-      "st4.p": "<code>TactileEvent</code>s marked on a synchronized Rerun timeline, annotatable.",
-      "st5.h": "Benchmark",
-      "st5.p": "Reproducible per-episode reports with quality and calibration tracking.",
-      "sec.sensors.h": "Sensor protocols, verified against the manuals",
-      "sec.sensors.p": "Each codec is golden-tested byte-for-byte against worked frames from its vendor manual — no hardware required to develop against it.",
-      "sn.th1": "Sensor", "sn.th2": "Output", "sn.th3": "Link", "sn.th4": "Status",
-      "sn.r1name": "M0404S<span>resistive matrix kit</span>",
-      "sn.r1out": "4×4 matrix · 16 taxels",
-      "sn.r1link": "UART 115200, active push",
-      "sn.r2name": "PaXini PX-6AX GEN3<span>tactile skin</span>",
-      "sn.r2out": "per-point 3-axis force + resultant",
-      "sn.r2link": "UART 921600, req–resp",
-      "sn.r3name": "PaXini PX6D<span>six-axis F/T</span>",
-      "sn.r3out": "Fx, Fy, Fz, Mx, My, Mz · float32",
-      "sn.r3link": "USB / RS485 · 1 kHz",
-      "sn.r4name": "PaXini PX3Q<span>joint torque</span>",
-      "sn.r4out": "Mx, My, Mz · N·m · 30/50/100 FS",
-      "sn.r4link": "USB / RS485 · 921600",
-      "sn.ok": "● codec ready",
-      "sn.note": "Live serial adapters, record / replay / inference over real hardware and a 30-minute stability run are the Phase 5 deliverables —",
-      "sn.badgeSoon": "live adapters · awaiting hardware",
-      "sec.roadmap.h": "Where the project stands",
-      "sec.roadmap.p": "Phase 0–4 are complete. The next milestone is the first live sensor.",
-      "ph1.tag": "PHASE 0–2 · DONE",
-      "ph1.h": "Contracts, data path, replay",
-      "ph1.p": "Package and core contracts; Open-X-Tactile adapter for image / matrix / F/T streams; MCAP export and Rerun replay with C/S/U annotation.",
-      "ph2.tag": "PHASE 3 · DONE",
-      "ph2.h": "Runtime & benchmark",
-      "ph2.p": "Contact / slip baselines with builtin and ONNX scoring backends; reproducible per-episode benchmark reports.",
-      "ph3.tag": "PHASE 4 · DONE",
-      "ph3.h": "Quality & calibration",
-      "ph3.p": "Two-level capability validation, dataset quality health reports, calibration provenance, per-stream benchmark grouping.",
-      "ph4.tag": "PHASE 5 · IN PROGRESS",
-      "ph4.h": "First live sensor",
-      "ph4.p": "Live serial adapter, live record / replay / inference, device reconnect handling and a 30-minute stability run. Codecs are ready; hardware is on the way.",
-      "ph5.tag": "PHASE 6 · PLANNED",
-      "ph5.h": "v0.1 release",
-      "ph5.p": "External-user Quickstart, English documentation and the first tagged release.",
-      "sec.qs.h": "Up and running in one minute",
-      "sec.qs.p": "Python 3.12+ and <a href=\"https://docs.astral.sh/uv/\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--accent)\">uv</a>. Install from source; no PyPI package yet.",
-      "qs.copy": "copy",
-      "qs.copied": "copied ✓",
-      "qs.terminal": "<span class=\"tok-c\"># clone and install (uv manages everything)</span>\ngit clone https://github.com/mailes/TacStack.git\ncd TacStack\nuv sync\n\n<span class=\"tok-c\"># guided tour — no data download, no hardware</span>\n<span class=\"tok-p\">uv run</span> tacstack demo\n\n<span class=\"tok-c\"># replay a real episode layout into Rerun</span>\n<span class=\"tok-p\">uv run</span> tacstack replay \\\n  tests/fixtures/open_x_tactile/demo_wipe.tar --viewer",
-      "foot.desc": "Cross-sensor tactile semantics and runtime for robotics. Raw-first · Semantics-first · Edge-first · Integration-first.",
-      "foot.col1": "Project",
-      "foot.l1": "GitHub repository",
-      "foot.l2": "Roadmap",
-      "foot.col2": "Docs",
-      "foot.l4": "Architecture",
-      "foot.l5": "Adapter guide",
-      "foot.l6": "Contributing",
-      "foot.bottom1": "© <span id=\"year\">2026</span> TacStack contributors. Apache-2.0 — dataset, model and third-party SDK licenses verified separately.",
-      "foot.bottom2": "Built for robots that feel."
-    },
-    zh: {
-      "meta.title": "TacStack — 面向机器人的跨传感器触觉语义与运行时",
-      "meta.desc": "TacStack 原样保留触觉原始数据，并在其上构建统一的 Observation、模型接口与事件契约——一套契约，贯通所有触觉传感器。",
-      "nav.principles": "原则",
-      "nav.pipeline": "管线",
-      "nav.sensors": "传感器",
-      "nav.roadmap": "路线图",
-      "nav.quickstart": "快速开始",
-      "hero.eyebrow": "开源 · Apache-2.0 · Python 3.12+",
-      "hero.h1": "一套契约，<br>贯通<span class=\"grad\">所有触觉传感器</span>。",
-      "hero.lede": "TacStack 是面向机器人的跨传感器触觉语义与运行时。原始数据原样保留，其上是一套统一的 Observation、模型接口与事件契约——接入一款新传感器，以小时计，而非数周。",
-      "hero.cta1": "快速开始",
-      "hero.cta2": "查看源码",
-      "hero.stat1": "款传感器 codec 已验证",
-      "hero.stat2": "类触觉模态统一接入",
-      "hero.stat3": "重依赖（core 保持轻量）",
-      "hero.chip1": "<b>GelSight</b> · 图像",
-      "hero.chip2": "<b>uSkin</b> · 4×4 触点阵",
-      "hero.chip3": "<b>PX6D</b> · 六轴力/扭矩",
-      "hero.chip4": "<b>PX3Q</b> · 关节扭矩",
-      "hero.hubsub": "原始优先 · 一套契约",
-      "hero.pill3": "<b>TactileEvent</b> → 时间轴",
-      "sec.principles.h": "支撑整个技术栈的四条原则",
-      "sec.principles.p": "四项承诺，贯穿每一个 Adapter、模型与集成决策。",
-      "pr.raw.h": "原始优先",
-      "pr.raw.p": "厂商原始报文按字节保留在 raw / metadata 中，接入时不做任何归一化丢弃。",
-      "pr.sem.h": "语义优先",
-      "pr.sem.p": "一套 Observation 与事件契约横跨传感器与模态——图像、触点矩阵、力/扭矩。",
-      "pr.edge.h": "边缘优先",
-      "pr.edge.p": "Core 不依赖 ROS2、云服务或训练框架。机器人跑在哪里，它就跑在哪里。",
-      "pr.int.h": "集成优先",
-      "pr.int.p": "复用已验证的生态：MCAP、Foxglove、Rerun；重型依赖保持可选。",
-      "sec.pipeline.h": "从原始数据到机器人可用的事件",
-      "sec.pipeline.p": "离线链路今日已端到端打通——每一环都是经过测试、有文档的契约。",
-      "st1.h": "数据集",
-      "st1.p": "Open-X-Tactile tar / zarr episode；录制数据可经 MCAP 回放。",
-      "st2.h": "观测",
-      "st2.p": "<code>TactileObservation</code>——图像流、触点矩阵、力/扭矩统一为一种形状。",
-      "st3.h": "运行时",
-      "st3.p": "内置打分器或 ONNX 工件驱动 contact / slip 基线。",
-      "st4.h": "事件",
-      "st4.p": "<code>TactileEvent</code> 标记到同步的 Rerun 时间轴，支持人工标注。",
-      "st5.h": "基准",
-      "st5.p": "可复现的逐 episode 报告，含质量与标定追踪。",
-      "sec.sensors.h": "传感器协议，逐字节对照手册验证",
-      "sec.sensors.p": "每个 codec 都以厂商手册示例帧做逐字节黄金测试——开发不需要硬件。",
-      "sn.th1": "传感器", "sn.th2": "输出", "sn.th3": "链路", "sn.th4": "状态",
-      "sn.r1name": "M0404S<span>压阻矩阵套件</span>",
-      "sn.r1out": "4×4 矩阵 · 16 触点",
-      "sn.r1link": "UART 115200，主动上报",
-      "sn.r2name": "帕西尼 PX-6AX GEN3<span>触觉皮肤</span>",
-      "sn.r2out": "逐点三轴力 + 合力",
-      "sn.r2link": "UART 921600，请求-应答",
-      "sn.r3name": "帕西尼 PX6D<span>六维力/扭矩</span>",
-      "sn.r3out": "Fx, Fy, Fz, Mx, My, Mz · float32",
-      "sn.r3link": "USB / RS485 · 1 kHz",
-      "sn.r4name": "帕西尼 PX3Q<span>关节扭矩</span>",
-      "sn.r4out": "Mx, My, Mz · N·m · 满量程 30/50/100",
-      "sn.r4link": "USB / RS485 · 921600",
-      "sn.ok": "● codec 就绪",
-      "sn.note": "实时串口适配器、真实硬件上的 record / replay / inference 与 30 分钟稳定性运行是 Phase 5 的交付——",
-      "sn.badgeSoon": "实时适配器 · 等待硬件到货",
-      "sec.roadmap.h": "项目当前进展",
-      "sec.roadmap.p": "Phase 0–4 已完成。下一个里程碑是第一块实时传感器。",
-      "ph1.tag": "PHASE 0–2 · 已完成",
-      "ph1.h": "契约、数据通路与回放",
-      "ph1.p": "Package 与核心契约；Open-X-Tactile 适配器覆盖图像 / 矩阵 / F/T 流；MCAP 导出与 Rerun 回放，支持 C/S/U 标注。",
-      "ph2.tag": "PHASE 3 · 已完成",
-      "ph2.h": "运行时与基准",
-      "ph2.p": "内置与 ONNX 双打分后端的 contact / slip 基线；可复现的逐 episode 基准报告。",
-      "ph3.tag": "PHASE 4 · 已完成",
-      "ph3.h": "质量与标定",
-      "ph3.p": "两级 capability 校验、数据集质量健康报告、标定溯源、按 stream 分组的基准。",
-      "ph4.tag": "PHASE 5 · 进行中",
-      "ph4.h": "首块实时传感器",
-      "ph4.p": "实时串口适配器、实时 record / replay / inference、断连重连处理与 30 分钟稳定性运行。Codec 已就绪，硬件在途。",
-      "ph5.tag": "PHASE 6 · 规划中",
-      "ph5.h": "v0.1 发布",
-      "ph5.p": "面向外部用户的 Quickstart、英文文档与首个正式版本。",
-      "sec.qs.h": "一分钟跑起来",
-      "sec.qs.p": "需要 Python 3.12+ 与 <a href=\"https://docs.astral.sh/uv/\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--accent)\">uv</a>。目前从源码安装，尚未发布 PyPI 包。",
-      "qs.copy": "复制",
-      "qs.copied": "已复制 ✓",
-      "qs.terminal": "<span class=\"tok-c\"># 克隆并安装（uv 管理一切依赖）</span>\ngit clone https://github.com/mailes/TacStack.git\ncd TacStack\nuv sync\n\n<span class=\"tok-c\"># 引导式演示——不下载、不连硬件</span>\n<span class=\"tok-p\">uv run</span> tacstack demo\n\n<span class=\"tok-c\"># 把真实 episode 布局回放到 Rerun</span>\n<span class=\"tok-p\">uv run</span> tacstack replay \\\n  tests/fixtures/open_x_tactile/demo_wipe.tar --viewer",
-      "foot.desc": "面向机器人的跨传感器触觉语义与运行时。Raw-first · Semantics-first · Edge-first · Integration-first。",
-      "foot.col1": "项目",
-      "foot.l1": "GitHub 仓库",
-      "foot.l2": "开发路线",
-      "foot.col2": "文档",
-      "foot.l4": "架构",
-      "foot.l5": "Adapter 指南",
-      "foot.l6": "贡献指南",
-      "foot.bottom1": "© <span id=\"year\">2026</span> TacStack 贡献者。Apache-2.0 —— 数据集、模型与第三方 SDK 许可需单独核实。",
-      "foot.bottom2": "为有触觉的机器人而造。"
-    }
-  };
-
-  var lang = "en";
-
-  function t(key) {
-    return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || "";
-  }
-
-  function setLang(next) {
-    lang = next;
-    document.documentElement.lang = next === "zh" ? "zh-CN" : "en";
-    document.title = t("meta.title");
-    var meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", t("meta.desc"));
-    document.querySelectorAll("[data-i18n]").forEach(function (el) {
-      el.innerHTML = t(el.getAttribute("data-i18n"));
-    });
-    document.querySelectorAll(".lang-toggle button").forEach(function (b) {
-      b.classList.toggle("active", b.getAttribute("data-lang") === next);
-    });
-    try { localStorage.setItem("tacstack-lang", next); } catch (e) { /* private mode */ }
-  }
-
-  // first visit follows the browser/system language; afterwards the saved
-  // choice wins
-  var saved = null;
-  try { saved = localStorage.getItem("tacstack-lang"); } catch (e) { /* private mode */ }
-  var systemLang = ((navigator.languages && navigator.languages[0]) || navigator.language || "en").toLowerCase();
-  setLang(saved || (systemLang.indexOf("zh") === 0 ? "zh" : "en"));
-
-  document.querySelectorAll(".lang-toggle button").forEach(function (b) {
-    b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
-  });
-
-  // copy-to-clipboard for code cards
-  document.querySelectorAll(".copy").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      var text = document.getElementById(btn.getAttribute("data-copy")).textContent;
-      navigator.clipboard.writeText(text).then(function () {
-        var old = btn.textContent;
-        btn.textContent = t("qs.copied");
-        setTimeout(function () { btn.textContent = t("qs.copy"); }, 1400);
-      });
-    });
-  });
-
-  // reveal on scroll
-  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var reveals = document.querySelectorAll(".reveal");
-  if (reduced || !("IntersectionObserver" in window)) {
-    reveals.forEach(function (el) { el.classList.add("in"); });
-  } else {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-      });
-    }, { threshold: 0.12 });
-    reveals.forEach(function (el) { io.observe(el); });
-  }
-  document.getElementById("year").textContent = new Date().getFullYear();
-</script>
+<script src="./app.js" defer></script>
 </body>
 </html>
