@@ -6,22 +6,11 @@
 Observation、模型接口和 Event contract，逐步降低不同传感器的接入与使用成本。
 
 **当前状态：Phase 4 完成 / Phase 5（首块真实传感器）准备中。** 离线链路已端到端
-可用：Open-X-Tactile（FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一
-`TactileObservation`，同时支持两类负载——视触觉图像流（GelSight）与 taxel 流
-（uSkin matrix、ATIAxia80M20 力扭矩）；CLI 可 list / inspect / convert
-episode，转换输出 Foxglove 可打开的 MCAP 记录（`--embed` 全保真，可经 mcap
-adapter 回放），`tacstack replay` 输出同步时间轴的 Rerun 录制（`--model` 可边
-回放边推理、把 `TactileEvent` 标记上时间轴），`tacstack annotate` 把 C/S/U
-标记存为 Parquet 并可回放到时间轴（`rerun` / `annotate` 为可选依赖）。
-`for event in runtime.events(...)` 驱动内置启发式 contact / slip baseline，
-同时支持 builtin 打分与 ONNX 打分工件（onnxruntime 后端，工件与 manifest
-分离；确定性阈值模型，非学习模型），`tacstack benchmark` 输出可复现的逐
-episode 报告。Phase 4 补齐 capability 两级校验、`dataset quality` 健康报告、
-标定贯通与 benchmark 按 stream 分组。四款真实传感器的协议编解码已按厂商手册
-示例帧逐字节实现并通过黄金测试（见[已验证的传感器协议](#已验证的传感器协议)），
-pyserial 实时适配器待硬件到货后接入（Phase 5）。ROS2 集成尚未实现。
-仓库内置的数据集 fixture 是合成内容，布局镜像真实发布格式（见
-`tests/fixtures/README.md`）。
+打通：数据集 → `TactileObservation` → MCAP / Rerun 回放 → contact / slip 事件
+（builtin / ONNX 双打分后端）→ benchmark 报告。四款真实传感器的协议编解码已按
+厂商手册黄金测试（见[已验证的传感器协议](#已验证的传感器协议)），实时串口
+适配器待硬件到货（Phase 5）。ROS2 集成尚未实现；内置数据集 fixture 为合成内容
+（`tests/fixtures/README.md`）。
 
 ## 本地开始
 

@@ -8,27 +8,12 @@ contract on top, steadily lowering the cost of bringing up and using different
 tactile sensors.
 
 **Status: Phase 4 done / Phase 5 (first live sensor) in preparation.** The
-offline loop works end to end. The Open-X-Tactile (FTP-1) adapter reads
-tar-wrapped zarr episodes into `TactileObservation` for both payload kinds —
-vision-tactile image streams (GelSight) and taxel streams (uSkin matrix,
-ATIAxia80M20 force/torque); the CLI lists / inspects / converts episodes and
-conversion writes an MCAP record that Foxglove opens (full-fidelity via
-`--embed`, replayable through the mcap adapter); `tacstack replay` writes a
-synchronized Rerun recording and can run a model inline to mark `TactileEvent`s
-on the timeline; `tacstack annotate` stores C / S / U marks as Parquet that
-replay puts back on the timeline (`rerun` / `annotate` are opt-in extras).
-`for event in runtime.events(...)` drives built-in heuristic contact / slip
-baselines through both the builtin scorer and ONNX scoring artifacts
-(onnxruntime backend, artifact/manifest separation; deterministic threshold
-models — not learned), and `tacstack benchmark` produces reproducible
-per-episode reports. Phase 4 completed the loop with two-level capability
-validation, the `dataset quality` health report, calibration plumbing and
-per-stream benchmark grouping. Protocol codecs for four real sensors are
-implemented and golden-tested against their vendor manuals (see
-[Verified sensor protocols](#verified-sensor-protocols)); the live serial
-adapters land when the hardware arrives (Phase 5). The ROS2 integration is not
-implemented yet. The bundled dataset fixture is synthetic; its layout mirrors
-the real releases (see `tests/fixtures/README.md`).
+offline loop works end to end — dataset → `TactileObservation` → MCAP / Rerun
+replay → contact / slip events (builtin or ONNX scoring) → benchmark report.
+Protocol codecs for four real sensors are implemented and golden-tested
+([Verified sensor protocols](#verified-sensor-protocols)); live serial adapters
+land with the hardware (Phase 5). ROS2 integration is not implemented yet; the
+bundled dataset fixture is synthetic (`tests/fixtures/README.md`).
 
 ## Getting started
 
