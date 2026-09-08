@@ -26,3 +26,6 @@ artifacts/
 /TacStack_*.docx
 /architecture_v01.png
 /commercial_path.png
+
+# 帕西尼整线产品资料（本地参考用）：体积大、含厂商二进制/STEP，再分发许可未确认
+docs/产品资料/
