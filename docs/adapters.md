@@ -39,6 +39,8 @@ HTTP 流式读取不在 v0.1 范围。
   `timestamp_domain="nanoseconds"`。原始帧号始终保留在 `metadata["oxt_frame_index"]`。
 - raw-first：每帧的小数组（关节、指令等）进 `raw`；相机等大体量非触觉流不逐帧
   拷贝，只在 `metadata["oxt_camera_streams"]` 记录名字，全精度数据保留在源数据集。
+  回放类消费者可用 `extra_arrays`（CLI `--extra-array`，可重复）按帧显式选入
+  指定数组（典型是相机），不影响默认契约。
 - 一个 Adapter 实例对应一个 (task, episode, tactile stream)；多流数据集必须显式
   指定 stream。
 
@@ -55,7 +57,29 @@ uv run tacstack dataset convert <tar-or-dir> --task <task> --episode 0 --out dem
 
 MCAP 导出（`tacstack.integrations.mcap`）每帧写一条 JSON 消息（schema
 `tacstack.tactile_observation.v1`），Foxglove 可直接打开；体量大的数组只写
-shape / dtype / 统计摘要，全精度数据保留在源数据集中。
+shape / dtype / 统计摘要（含 nonfinite 计数），全精度数据保留在源数据集中。
+
+## Rerun 回放（tacstack replay，Phase 2）
+
+`rerun` 是可选依赖（`uv sync --extra rerun`）。一条命令把一个 episode 写成
+同步时间轴的 Rerun 录制：
+
+```bash
+uv sync --extra rerun
+uv run tacstack replay <tar-or-dir> --task <task> --episode 0 --stream <stream> \
+    --extra-array right_wrist_camera_rgb --out replay.rrd
+# --viewer 直接拉起本地 viewer；--connect <grpc-url> 连接已运行的 viewer
+```
+
+- 两条时间轴：`timestamp`（ns，duration 语义；index domain 下是只保证单调的
+  伪时间）与 `frame_index`（来自 `metadata["oxt_frame_index"]`），viewer 里
+  可任意切换。
+- 实体树按 sensor_id 组织（`oxt:<task>:<stream>` → `oxt/<task>/<stream>`）：
+  `tactile_image` 按 area 出图；grid 形 taxel 出 Tensor + 逐 area 归一化热图；
+  向量型 taxel（如六轴 F/T）出 `fx..tz` 标量序列（仅展示标签，不改负载语义）；
+  `raw` 小数组出逐分量标量序列，HxWxC（`--extra-array` 选入的相机）出 Image，
+  更大数组出 Tensor；字符串只在变化时记 TextDocument。
+- 多个 Adapter 可以先后灌进同一个 `RerunReplay` 录制，多流共享时间轴。
 
 golden fixture 与真实布局的对应关系见 `tests/fixtures/README.md`。
 

@@ -18,8 +18,11 @@ Contract and boundary:
   preserved in ``raw``; tactile payloads go to ``tactile_image`` / ``taxels``
   according to the stream's declared type; bulk non-tactile streams (cameras)
   stay in the source archive and are only referenced by name in ``metadata``.
+  ``extra_arrays`` opts a replay-style consumer in to embedding named bulk
+  arrays (typically cameras) per frame; the default contract stays unchanged.
 """
 
+from collections.abc import Sequence
 from math import isfinite
 from pathlib import Path
 from typing import Any, Literal
@@ -53,15 +56,22 @@ class OpenXTactileAdapter:
         stream: str | None = None,
         rate_hz: float | None = None,
         timestamp_domain: TimestampDomain = "frame_index",
+        extra_arrays: Sequence[str] = (),
     ) -> None:
         if rate_hz is not None and (not isfinite(rate_hz) or rate_hz <= 0):
             raise ValueError("rate_hz must be finite and positive when given")
+        extra_arrays = tuple(extra_arrays)
+        if len(set(extra_arrays)) != len(extra_arrays):
+            raise ValueError("extra_arrays must not contain duplicates")
+        if any(not isinstance(name, str) or not name.strip() for name in extra_arrays):
+            raise ValueError("extra_arrays entries must be non-empty strings")
         self._source = source
         self._task_name = task
         self._episode = episode
         self._stream_name = stream
         self._rate_hz = rate_hz
         self._timestamp_domain: TimestampDomain = timestamp_domain
+        self._extra_arrays = extra_arrays
         self._archive: OpenXTactileArchive | None = None
         self._task: OpenXTactileTask | None = None
         self._stream: TactileStreamInfo | None = None
@@ -83,6 +93,12 @@ class OpenXTactileAdapter:
             return
         archive = OpenXTactileArchive(self._source)
         task = archive.open_task(self._task_name)
+        missing = [name for name in self._extra_arrays if name not in task.array_names]
+        if missing:
+            raise KeyError(
+                f"task {self._task_name!r}: extra arrays not found: {', '.join(missing)}; "
+                f"available: {', '.join(task.array_names)}"
+            )
         stream = self._resolve_stream(task)
         start, end = task.episode_bounds(self._episode)
         if end == start:
@@ -204,6 +220,14 @@ class OpenXTactileAdapter:
                 # every tactile stream belongs to its own adapter instance
                 continue
             if any(token in name for token in _BULK_STREAM_TOKENS):
+                continue
+            value = np.asarray(self._task.array(f"data/{name}")[index])
+            payload[name] = value.item() if value.ndim == 0 else value.copy()
+        # explicitly requested arrays override the tactile/bulk exclusions above;
+        # this is how a replay opts in to camera frames without changing the
+        # default raw-first contract for every other consumer
+        for name in self._extra_arrays:
+            if name in payload:
                 continue
             value = np.asarray(self._task.array(f"data/{name}")[index])
             payload[name] = value.item() if value.ndim == 0 else value.copy()

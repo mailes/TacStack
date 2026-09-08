@@ -63,12 +63,18 @@ def _open_episode_adapter(
     episode: int,
     stream: str | None,
     rate_hz: float | None,
+    extra_arrays: tuple[str, ...] = (),
 ) -> OpenXTactileAdapter:
     try:
         with OpenXTactileArchive(source) as archive:
             resolved = _resolve_task(archive, task)
         adapter = OpenXTactileAdapter(
-            source, task=resolved, episode=episode, stream=stream, rate_hz=rate_hz
+            source,
+            task=resolved,
+            episode=episode,
+            stream=stream,
+            rate_hz=rate_hz,
+            extra_arrays=extra_arrays,
         )
         adapter.open()
     except (IndexError, KeyError, OSError, RuntimeError, ValueError) as error:
@@ -148,6 +154,62 @@ def dataset_convert(
         f"wrote {summary.messages} observations to {summary.path} "
         f"(timestamps {summary.first_timestamp_ns}..{summary.last_timestamp_ns})"
     )
+
+
+@app.command()
+def replay(
+    source: Path = typer.Argument(
+        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+    ),
+    task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
+    episode: int = typer.Option(0, min=0, help="Episode index."),
+    stream: str | None = typer.Option(
+        None, help="Tactile stream name; optional when the task has one."
+    ),
+    rate_hz: float | None = typer.Option(
+        None, help="Assumed frame rate; converts index timestamps to ns."
+    ),
+    extra_array: list[str] = typer.Option(
+        [],
+        "--extra-array",
+        help="Embed a named data array per frame (e.g. a camera stream); repeatable.",
+    ),
+    out: Path | None = typer.Option(None, help="Write a .rrd recording to this path."),
+    viewer: bool = typer.Option(False, "--viewer", help="Spawn a local Rerun viewer."),
+    connect: str | None = typer.Option(
+        None, "--connect", help="Stream to a running viewer (grpc url)."
+    ),
+) -> None:
+    """Replay one tactile episode to Rerun on synchronized timelines.
+
+    Tactile images, taxel heatmaps / F-T series and robot state land on the
+    same timeline; scrub and inspect them in the Rerun viewer.
+    """
+    if out is None and not viewer and connect is None:
+        _fail(ValueError("choose at least one sink: --out PATH, --viewer or --connect URL"))
+    try:
+        from tacstack.integrations.rerun import RerunReplay
+    except ImportError as error:  # pragma: no cover - depends on optional extra
+        _fail(RuntimeError(f"the rerun SDK is not installed; run: uv sync --extra rerun ({error})"))
+    adapter = _open_episode_adapter(
+        source, task, episode, stream, rate_hz, extra_arrays=tuple(extra_array)
+    )
+    replay_logger = RerunReplay()
+    if out is not None:
+        replay_logger.save(out)
+    if connect is not None:
+        replay_logger.connect(connect)
+    if viewer:
+        replay_logger.spawn()
+    frames = 0
+    try:
+        for observation in observations(adapter):
+            replay_logger.log_observation(observation)
+            frames += 1
+    finally:
+        adapter.close()
+        replay_logger.flush()
+    typer.echo(f"logged {frames} observations to rerun")
 
 
 if __name__ == "__main__":

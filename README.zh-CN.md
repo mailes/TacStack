@@ -5,12 +5,13 @@
 面向机器人应用的跨传感器触觉语义与运行时项目。保留原始触觉数据，通过统一的
 Observation、模型接口和 Event contract，逐步降低不同传感器的接入与使用成本。
 
-**当前状态：Phase 0 完成 / Phase 1 数据通路已实现。** 核心 dataclass、基础验证、
+**当前状态：Phase 1 完成 / Phase 2 回放进行中。** 核心 dataclass、基础验证、
 debug JSON、Adapter / Model 协议已就绪，第一条真实数据通路可用：Open-X-Tactile
 （FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一 `TactileObservation`，同时
-支持两类负载——视触觉图像流（GelSight）与 taxel 状态流（uSkin）；CLI 可
-list / inspect / convert episode，转换输出 Foxglove 可打开的 MCAP 记录。
-contact/slip 检测、ONNX 推理、Rerun / ROS2 集成和真实传感器尚未实现。仓库内置
+支持两类负载——视触觉图像流（GelSight）与 taxel 流（uSkin matrix、ATIAxia80M20
+力扭矩）；CLI 可 list / inspect / convert episode，转换输出 Foxglove 可打开的
+MCAP 记录，`tacstack replay` 输出同步时间轴的 Rerun 录制（`rerun` 为可选依赖）。
+contact/slip 检测、ONNX 推理、ROS2 集成、Rerun 标注和真实传感器尚未实现。仓库内置
 的数据集 fixture 是合成内容，布局镜像真实发布格式（见 `tests/fixtures/README.md`）。
 
 ## 本地开始
@@ -59,9 +60,9 @@ src/tacstack/
   adapters/       # base 协议；open_x_tactile 已实现（tar/zarr，Phase 1）
   runtime/        # model 协议；buffer / ONNX backend 预留
   models/         # contact / slip 预留
-  integrations/   # MCAP 导出已实现；Rerun / LeRobot / ROS2 预留
+  integrations/   # MCAP 导出 + Rerun 回放已实现；LeRobot / ROS2 预留
   benchmark/      # 评估工具预留
-  cli/            # version / contract-demo / dataset list-inspect-convert
+  cli/            # version / contract-demo / dataset list-inspect-convert / replay
 examples/         # 可运行 contract_demo 与 replay_open_x_tactile
 tests/            # unit / integration / fixtures
 docs/             # 架构、接口、开发路线、ADR
@@ -82,10 +83,9 @@ uv run pre-commit install
 
 ## 下一步
 
-1. 用真实 RH20TCfg7Tactile（uSkin）发布 tar 验证适配器。
-2. 实现 Rerun 同步回放。
-3. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
-4. 接入第一块真实传感器，验证 live record / replay / inference。
+1. 轻量标注（C / S / U 标记 → `annotations.parquet`），完成 Phase 2。
+2. 加入 contact 与 temporal slip baseline、ONNX 和可复现评估。
+3. 接入第一块真实传感器，验证 live record / replay / inference。
 
 详见 [开发路线](docs/roadmap.md)、[架构](docs/architecture.md)、
 [核心概念](docs/concepts.md)、[Adapter 指南](docs/adapters.md)、

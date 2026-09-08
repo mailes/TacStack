@@ -7,16 +7,17 @@ tactile data intact and layers a unified Observation, model interface and Event
 contract on top, steadily lowering the cost of bringing up and using different
 tactile sensors.
 
-**Status: Phase 0 done / Phase 1 dataset path implemented.** Core dataclasses,
+**Status: Phase 1 done / Phase 2 replay in progress.** Core dataclasses,
 basic validation, debug JSON and the Adapter / Model protocols are in place, and
 the first real data path works: the Open-X-Tactile (FTP-1) adapter reads
 tar-wrapped zarr episodes into `TactileObservation` for both payload kinds —
-vision-tactile image streams (GelSight) and taxel state streams (uSkin) — the
-CLI can list / inspect / convert episodes, and conversion writes an MCAP record
-that Foxglove opens. Contact / slip detection, ONNX inference, the Rerun / ROS2
-integrations and live sensors are not implemented yet. The bundled dataset
-fixture is synthetic; its layout mirrors the real releases (see
-`tests/fixtures/README.md`).
+vision-tactile image streams (GelSight) and taxel streams (uSkin matrix,
+ATIAxia80M20 force/torque) — the CLI can list / inspect / convert episodes,
+conversion writes an MCAP record that Foxglove opens, and `tacstack replay`
+writes a synchronized Rerun recording (opt-in via the `rerun` extra). Contact /
+slip detection, ONNX inference, the ROS2 integration, Rerun annotation and live
+sensors are not implemented yet. The bundled dataset fixture is synthetic; its
+layout mirrors the real releases (see `tests/fixtures/README.md`).
 
 ## Getting started
 
@@ -67,9 +68,9 @@ src/tacstack/
   adapters/       # base protocol; open_x_tactile implemented (tar/zarr, Phase 1)
   runtime/        # model protocol; buffer / ONNX backend reserved
   models/         # contact / slip reserved
-  integrations/   # MCAP export implemented; Rerun / LeRobot / ROS2 reserved
+  integrations/   # MCAP export + Rerun replay implemented; LeRobot / ROS2 reserved
   benchmark/      # evaluation tooling reserved
-  cli/            # version / contract-demo / dataset list-inspect-convert
+  cli/            # version / contract-demo / dataset list-inspect-convert / replay
 examples/         # runnable contract_demo and replay_open_x_tactile
 tests/            # unit / integration / fixtures
 docs/             # architecture, interfaces, roadmap, ADR (Chinese for now)
@@ -90,10 +91,9 @@ uv run pre-commit install
 
 ## Next steps
 
-1. Verify the adapter against the real RH20TCfg7Tactile (uSkin) release tar.
-2. Implement synchronized Rerun replay.
-3. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
-4. Bring up the first real sensor and verify live record / replay / inference.
+1. Add lightweight annotation (C / S / U marks → `annotations.parquet`) to finish Phase 2.
+2. Add contact and temporal slip baselines, ONNX and reproducible evaluation.
+3. Bring up the first real sensor and verify live record / replay / inference.
 
 See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [concepts](docs/concepts.md), [adapter guide](docs/adapters.md),
