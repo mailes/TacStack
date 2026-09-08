@@ -30,7 +30,7 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from tacstack.annotations import TactileMark
-from tacstack.core import SensorDescriptor, TactileObservation
+from tacstack.core import SensorDescriptor, TactileEvent, TactileObservation
 from tacstack.core.serialization import to_debug_json
 
 # Display labels for 6-wide streams such as ATIAxia80M20 force/torque. These
@@ -94,6 +94,20 @@ class RerunReplay:
         self._stream.set_time("frame_index", sequence=mark.oxt_frame_index)
         self._text_entities.setdefault(path, None)
         self._stream.log(path, rr.TextDocument(f"{mark.mark} {mark.label} ({mark.user})"))
+
+    def log_event(self, event: TactileEvent) -> None:
+        """Place one TactileEvent on the timelines as a scalar marker.
+
+        The probability lands on ``<sensor>/events/<kind>`` so the Series row
+        of the blueprint renders one curve per event kind.
+        """
+        path = f"{_entity_safe(event.sensor_id)}/events/{event.kind}"
+        self._stream.set_time("timestamp", duration=np.timedelta64(event.timestamp_ns, "ns"))
+        frame = event.metadata.get("oxt_frame_index")
+        if frame is not None:
+            self._stream.set_time("frame_index", sequence=int(frame))
+        self._scalar_groups.setdefault(path, None)
+        self._stream.log(path, rr.Scalars([float(event.probability)]))
 
     def _log_time(self, observation: TactileObservation) -> None:
         # np.timedelta64("ns") carries exact nanoseconds; a plain int would be

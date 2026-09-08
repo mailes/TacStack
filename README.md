@@ -13,8 +13,10 @@ the first real data path works: the Open-X-Tactile (FTP-1) adapter reads
 tar-wrapped zarr episodes into `TactileObservation` for both payload kinds —
 vision-tactile image streams (GelSight) and taxel streams (uSkin matrix,
 ATIAxia80M20 force/torque) — the CLI can list / inspect / convert episodes,
-conversion writes an MCAP record that Foxglove opens, `tacstack replay` writes
-a synchronized Rerun recording, and `tacstack annotate` stores C / S / U marks
+conversion writes an MCAP record that Foxglove opens (full-fidelity via
+`--embed`, replayable through the mcap adapter), `tacstack replay` writes
+a synchronized Rerun recording and can run a model inline to mark
+`TactileEvent`s on the timeline, and `tacstack annotate` stores C / S / U marks
 as Parquet that replay puts back on the timeline (`rerun` / `annotate` are
 opt-in extras). Phase 3 is done: `for event in runtime.events(...)` drives
 built-in heuristic contact / slip baselines through both the builtin scorer
@@ -73,7 +75,7 @@ sample = TactileEvent(
 ```text
 src/tacstack/
   core/           # data structures, basic validation, debug serialization
-  adapters/       # base protocol; open_x_tactile implemented (tar/zarr, Phase 1)
+  adapters/       # base protocol; open_x_tactile + mcap replay implemented
   runtime/        # model protocol; buffer / ONNX backend reserved
   models/         # contact / slip reserved
   integrations/   # MCAP export + Rerun replay implemented; LeRobot / ROS2 reserved

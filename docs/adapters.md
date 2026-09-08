@@ -86,7 +86,30 @@ uv run tacstack replay <tar-or-dir> --task <task> --episode 0 --stream <stream> 
   `raw` 小数组出逐分量标量序列，HxWxC（`--extra-array` 选入的相机）出 Image，
   更大数组出 Tensor；字符串只在变化时记 TextDocument。
 - 多个 Adapter 可以先后灌进同一个 `RerunReplay` 录制，多流共享时间轴；
-  `flush()` 时发送自描述 blueprint，布局只包含本录制真正 log 过的实体。
+  `flush()` 时发送自描述 blueprint，布局只包含本录制真正 log 过的实体；
+  `--model contact|slip` 边回放边推理，`TactileEvent` 以 `events/<kind>`
+  标量序列上时间轴。
+
+## MCAP 回放（adapters.mcap，Phase 4）
+
+`dataset convert --embed` 把触觉数组以全精度写进 MCAP（base64 LE bytes +
+dtype/shape）；`McapReplayAdapter` 读取 `tacstack/observations` 频道回放为
+TactileObservation——export → replay 往返闭环：
+
+```python
+from tacstack.adapters.base import observations
+from tacstack.adapters.mcap import McapReplayAdapter
+
+adapter = McapReplayAdapter("demo.mcap", stream="oxt:<task>:<stream>")
+adapter.open()
+for observation in observations(adapter): ...
+```
+
+- 多流录制用 `stream=<sensor_id>` 选择；不指定时取文件里第一条流（其余跳过）；
+- 未 embed 的紧凑录制同样可回放：payload 为 None，摘要保留在
+  `metadata["replay_summaries"]`（raw-first：全精度数据在源归档）；
+- CLI：`tacstack replay` 与 `tacstack model run` 直接接受 `.mcap` 源，
+  按扩展名自动分发。
 
 ## 标注（tacstack annotate，Phase 2）
 

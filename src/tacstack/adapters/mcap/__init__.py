@@ -1,1 +1,5 @@
-"""MCAP replay adapter: planned for Phase 1."""
+"""MCAP replay adapter over TacStack-written recordings."""
+
+from tacstack.adapters.mcap.replay import McapReplayAdapter
+
+__all__ = ["McapReplayAdapter"]

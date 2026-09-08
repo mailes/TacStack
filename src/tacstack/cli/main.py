@@ -145,6 +145,11 @@ def dataset_convert(
         ..., exists=True, readable=True, help="OXT tar or extracted directory."
     ),
     out: Path = typer.Option(..., help="Output MCAP file path."),
+    embed: bool = typer.Option(
+        False,
+        "--embed",
+        help="Embed tactile arrays at full fidelity (enables mcap replay of payloads).",
+    ),
     task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
     episode: int = typer.Option(0, min=0, help="Episode index."),
     stream: str | None = typer.Option(
@@ -157,7 +162,7 @@ def dataset_convert(
     """Convert one episode to an MCAP recording (one JSON message per frame)."""
     adapter = _open_episode_adapter(source, task, episode, stream, rate_hz)
     try:
-        summary = write_episode_mcap(observations(adapter), out)
+        summary = write_episode_mcap(observations(adapter), out, embed_payloads=embed)
     finally:
         adapter.close()
     typer.echo(
@@ -166,10 +171,34 @@ def dataset_convert(
     )
 
 
+def _open_any_source(
+    source: Path,
+    task: str,
+    episode: int,
+    stream: str | None,
+    rate_hz: float | None,
+    extra_arrays: tuple[str, ...] = (),
+) -> Any:
+    """Open an OXT archive/extracted dir, or a TacStack .mcap recording."""
+    if source.suffix == ".mcap":
+        from tacstack.adapters.mcap import McapReplayAdapter
+
+        try:
+            adapter: Any = McapReplayAdapter(source, stream=stream)
+        except (FileNotFoundError, OSError, ValueError) as error:
+            _fail(error)
+        adapter.open()
+        return adapter
+    return _open_episode_adapter(source, task, episode, stream, rate_hz, extra_arrays=extra_arrays)
+
+
 @app.command()
 def replay(
     source: Path = typer.Argument(
-        ..., exists=True, readable=True, help="OXT tar or extracted directory."
+        ...,
+        exists=True,
+        readable=True,
+        help="OXT tar/extracted dir, or a TacStack .mcap recording (from convert --embed).",
     ),
     task: str = typer.Option("", help="Task name; optional when the archive holds exactly one."),
     episode: int = typer.Option(0, min=0, help="Episode index."),
@@ -182,8 +211,19 @@ def replay(
     extra_array: list[str] = typer.Option(
         [],
         "--extra-array",
-        help="Embed a named data array per frame (e.g. a camera stream); repeatable.",
+        help="Embed a named data array per frame (e.g. a camera stream); repeatable. OXT only.",
     ),
+    model: str | None = typer.Option(
+        None, "--model", help="Run this builtin model inline and log events (contact|slip)."
+    ),
+    on_threshold: float | None = typer.Option(None, help="Contact: begin threshold."),
+    off_threshold: float | None = typer.Option(None, help="Contact: end threshold."),
+    micro_threshold: float | None = typer.Option(None, help="Slip: micro_slip threshold."),
+    slip_threshold: float | None = typer.Option(None, help="Slip: slip threshold."),
+    artifact: Path | None = typer.Option(
+        None, "--artifact", help="ONNX scoring artifact; switches to the onnxruntime backend."
+    ),
+    model_id: str | None = typer.Option(None, "--model-id", help="Override the recorded model_id."),
     out: Path | None = typer.Option(None, help="Write a .rrd recording to this path."),
     viewer: bool = typer.Option(False, "--viewer", help="Spawn a local Rerun viewer."),
     connect: str | None = typer.Option(
@@ -196,7 +236,8 @@ def replay(
     """Replay one tactile episode to Rerun on synchronized timelines.
 
     Tactile images, taxel heatmaps / F-T series and robot state land on the
-    same timeline; scrub and inspect them in the Rerun viewer.
+    same timeline; with --model, TactileEvents are computed inline and logged
+    as scalar markers on an events/<kind> series.
     """
     if out is None and not viewer and connect is None:
         _fail(ValueError("choose at least one sink: --out PATH, --viewer or --connect URL"))
@@ -204,7 +245,19 @@ def replay(
         from tacstack.integrations.rerun import RerunReplay
     except ImportError as error:  # pragma: no cover - depends on optional extra
         _fail(RuntimeError(f"the rerun SDK is not installed; run: uv sync --extra rerun ({error})"))
-    adapter = _open_episode_adapter(
+    runtime: Runtime | None = None
+    if model is not None:
+        params = _model_params(
+            model, on_threshold, off_threshold, micro_threshold, slip_threshold, None, None
+        )
+        if artifact is not None:
+            params.pop("center", None)
+            params.pop("gain", None)
+        runtime = Runtime(
+            _build_model(model, params, artifact, model_id),
+            window_frames=_default_window(model),
+        )
+    adapter = _open_any_source(
         source, task, episode, stream, rate_hz, extra_arrays=tuple(extra_array)
     )
     replay_logger = RerunReplay()
@@ -215,6 +268,7 @@ def replay(
     if viewer:
         replay_logger.spawn()
     frames = 0
+    events_logged = 0
     resolved_task = resolved_stream = ""
     try:
         # descriptor.sensor_id is "oxt:<task>:<stream>" (built by the adapter)
@@ -224,6 +278,10 @@ def replay(
         for observation in observations(adapter):
             replay_logger.log_observation(observation)
             frames += 1
+            if runtime is not None:
+                for event in runtime.process(observation):
+                    replay_logger.log_event(event)
+                    events_logged += 1
     finally:
         adapter.close()
         replay_logger.flush()
@@ -233,6 +291,8 @@ def replay(
             replay_logger, annotations, resolved_task, episode, resolved_stream
         )
     message = f"logged {frames} observations to rerun"
+    if runtime is not None:
+        message += f" and {events_logged} model events"
     if annotations is not None:
         message += f" and {annotated} annotations"
     typer.echo(message)
@@ -463,7 +523,7 @@ def model_run(
     model = _build_model(name, params, artifact, model_id)
     window_frames = window if window is not None else _default_window(name)
     runtime = Runtime(model, window_frames=window_frames)
-    adapter = _open_episode_adapter(source, task, episode, stream, rate_hz)
+    adapter = _open_any_source(source, task, episode, stream, rate_hz)
     events: list[TactileEvent] = []
     frames = 0
     try:

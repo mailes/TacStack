@@ -10,7 +10,8 @@ debug JSON、Adapter / Model 协议已就绪，第一条真实数据通路可用
 （FTP-1）适配器把 tar 包裹的 zarr episode 读取为统一 `TactileObservation`，同时
 支持两类负载——视触觉图像流（GelSight）与 taxel 流（uSkin matrix、ATIAxia80M20
 力扭矩）；CLI 可 list / inspect / convert episode，转换输出 Foxglove 可打开的
-MCAP 记录，`tacstack replay` 输出同步时间轴的 Rerun 录制，`tacstack annotate`
+MCAP 记录，`tacstack replay` 输出同步时间轴的 Rerun 录制（`--model` 可边回放
+边推理、事件标记上时间轴），`tacstack annotate`
 把 C/S/U 标记存为 Parquet 并可回放到时间轴（`rerun` / `annotate` 为可选依赖）。
 Phase 3 已完成：`for event in runtime.events(...)` 驱动内置启发式
 contact / slip baseline，同时支持 builtin 打分与 ONNX 打分工件
@@ -64,7 +65,7 @@ sample = TactileEvent(
 ```text
 src/tacstack/
   core/           # 数据结构、基础验证、debug serialization
-  adapters/       # base 协议；open_x_tactile 已实现（tar/zarr，Phase 1）
+  adapters/       # base 协议；open_x_tactile + mcap replay 已实现
   runtime/        # model 协议；buffer / ONNX backend 预留
   models/         # contact / slip 预留
   integrations/   # MCAP 导出 + Rerun 回放已实现；LeRobot / ROS2 预留
