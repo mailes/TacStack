@@ -17,6 +17,15 @@
 > 模式（非主动上报）；合力 Fx/Fy 为有符号、Fz 无符号（1 LSB = 0.1 N），
 > 可直接填充 `TactileObservation.wrench`。
 
+> **力传感器候选已验证：帕西尼 PX6D 六维力**（2026-09-08，使用手册协议页）。
+> 六轴浮点输出（Fx, Fy, Fz, Mx, My, Mz），USB/RS485/CANFD/CAN 四种总线同一
+> 命令集（设置 ID / 回传频率 4Hz–1kHz / 自动回传 / 获取一帧 / 版本 / 标定）。
+> USB 协议编解码器已实现（`adapters/real_sensor/px6d.py`）：`AA 55` + ID +
+> CMD + data + CRC8；CRC8 参数手册未写明，已从样例暴力反推
+> （poly 0x07 / init 0x00 / xor 0xBC，窗口 = CMD+数据，全部样例验证通过）；
+> 应答帧 CRC 规则仍未识别（穷举无命中），解析默认宽松校验、待硬件实测。
+> 自动回传最高 1 kHz，`wrench` 直连 `TactileObservation.wrench`。
+
 目标：v0.1 只需要"能跑通 live 循环"（record → replay → inference）的一块传感器。
 按下面的硬性要求筛选/问客服，全部满足即可下单，价格越低越好；
 加分项有则更好，没有不阻塞。
