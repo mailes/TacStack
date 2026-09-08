@@ -102,7 +102,8 @@ from tacstack.adapters.mcap import McapReplayAdapter
 
 adapter = McapReplayAdapter("demo.mcap", stream="oxt:<task>:<stream>")
 adapter.open()
-for observation in observations(adapter): ...
+for observation in observations(adapter):
+    ...
 ```
 
 - 多流录制用 `stream=<sensor_id>` 选择；不指定时取文件里第一条流（其余跳过）；
