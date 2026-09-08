@@ -39,7 +39,7 @@ class TactileStreamInfo:
     stream: str  # "<side>_<group>", e.g. "right_gripper"
     data_key: str  # zarr array name, e.g. "right_tactile_data_gripper"
     sensor: str  # declared sensor model, e.g. "GelSightMini"
-    kind: str  # declared payload type: "image" | "state" | "binary"
+    kind: str  # declared payload type: "image" | "state" | "binary" | "matrix"
     areas: int  # size of the tactile-area axis
 
 
@@ -144,6 +144,12 @@ class OpenXTactileTask:
             streams=self.streams(),
         )
 
+    def close(self) -> None:
+        """Close the underlying store; cached arrays become invalid."""
+        if isinstance(self._store, TarStore):
+            self._store.close()
+        self._arrays.clear()
+
 
 class OpenXTactileArchive:
     """Inventory of tasks inside an OXT tar or extracted directory source."""
@@ -205,8 +211,7 @@ class OpenXTactileArchive:
 
     def close(self) -> None:
         for task in self._tasks.values():
-            if isinstance(task._store, TarStore):
-                task._store.close()
+            task.close()
         self._tasks.clear()
 
     def __enter__(self) -> "OpenXTactileArchive":

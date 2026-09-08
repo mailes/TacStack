@@ -38,7 +38,7 @@ TimestampDomain = Literal["frame_index", "nanoseconds"]
 
 # Bulk auxiliary streams that stay in the source archive instead of being
 # copied into every observation (referenced by name in metadata only).
-_BULK_STREAM_RE = ("camera",)
+_BULK_STREAM_TOKENS = ("camera",)
 
 
 class OpenXTactileAdapter:
@@ -203,7 +203,7 @@ class OpenXTactileAdapter:
             if "_tactile_" in name:
                 # every tactile stream belongs to its own adapter instance
                 continue
-            if any(token in name for token in _BULK_STREAM_RE):
+            if any(token in name for token in _BULK_STREAM_TOKENS):
                 continue
             value = np.asarray(self._task.array(f"data/{name}")[index])
             payload[name] = value.item() if value.ndim == 0 else value.copy()
@@ -222,7 +222,7 @@ class OpenXTactileAdapter:
             "oxt_camera_streams": tuple(
                 name
                 for name in self._task.array_names
-                if any(token in name for token in _BULK_STREAM_RE)
+                if any(token in name for token in _BULK_STREAM_TOKENS)
             ),
         }
         area_key = self._stream.data_key.replace("_data_", "_area_", 1)

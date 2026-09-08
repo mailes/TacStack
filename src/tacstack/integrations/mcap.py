@@ -64,16 +64,27 @@ class McapExportSummary:
 
 
 def _summarize_array(value: Any) -> dict[str, Any] | None:
-    """Describe a bulk array without embedding it; scalar-free and JSON-safe."""
+    """Describe a bulk array without embedding it; scalar-free and strict-JSON-safe.
+
+    Non-finite float values are counted in ``nonfinite`` and excluded from the
+    statistics, so a single NaN frame cannot break ``json.dumps(allow_nan=False)``.
+    """
     if value is None:
         return None
     flat = np.asarray(value)
+    if flat.dtype.kind == "f":
+        finite = flat[np.isfinite(flat)]
+        nonfinite = int(flat.size - finite.size)
+    else:
+        finite = flat.reshape(-1)
+        nonfinite = 0
     return {
         "shape": list(flat.shape),
         "dtype": str(flat.dtype),
-        "min": float(flat.min()) if flat.size else None,
-        "max": float(flat.max()) if flat.size else None,
-        "mean": float(flat.mean()) if flat.size else None,
+        "nonfinite": nonfinite,
+        "min": float(finite.min()) if finite.size else None,
+        "max": float(finite.max()) if finite.size else None,
+        "mean": float(finite.mean()) if finite.size else None,
     }
 
 
