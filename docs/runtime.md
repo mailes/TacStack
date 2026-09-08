@@ -61,7 +61,7 @@ baseline 的打分部分（幅值均值 / 帧间绝对差 → logistic）导出�
 ```python
 from tacstack.runtime.onnx_backend import OnnxContactModel, export_contact_scoring
 
-artifact = export_contact_scoring("contact.onnx")   # 也可用外部导出的 .onnx
+artifact = export_contact_scoring("contact.onnx")  # 也可用外部导出的 .onnx
 model = OnnxContactModel(artifact, on_threshold=0.6)
 runtime = Runtime(model, window_frames=1)
 ```
