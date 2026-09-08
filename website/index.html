@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TacStack — Cross-sensor tactile semantics for robotics</title>
+<meta name="description" content="TacStack keeps raw tactile data intact and layers a unified Observation, model interface and Event contract on top — one contract for every tactile sensor.">
+<meta property="og:title" content="TacStack — One contract for every tactile sensor">
+<meta property="og:description" content="Cross-sensor tactile semantics and runtime for robotics. Open source, Apache-2.0.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d13'/%3E%3Ccircle cx='10' cy='10' r='3' fill='%2322d3ee'/%3E%3Ccircle cx='22' cy='10' r='3' fill='%2322d3ee' opacity='.55'/%3E%3Ccircle cx='10' cy='22' r='3' fill='%2322d3ee' opacity='.55'/%3E%3Ccircle cx='22' cy='22' r='3' fill='%2322d3ee'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c12;
+    --bg-soft: #0e1119;
+    --surface: rgba(255, 255, 255, 0.03);
+    --surface-2: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text: #e7eaf0;
+    --muted: #99a1b3;
+    --faint: #6b7280;
+    --accent: #22d3ee;
+    --accent-2: #818cf8;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --radius: 16px;
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(34, 211, 238, 0.25); }
+  a { color: inherit; text-decoration: none; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- background decoration ---------- */
+  .backdrop {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(600px 420px at 78% -5%, rgba(34, 211, 238, 0.10), transparent 65%),
+      radial-gradient(700px 500px at 12% 8%, rgba(129, 140, 248, 0.08), transparent 65%),
+      var(--bg);
+  }
+  .backdrop::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(900px 600px at 50% 0%, #000 0%, transparent 75%);
+    -webkit-mask-image: radial-gradient(900px 600px at 50% 0%, #000 0%, transparent 75%);
+  }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    background: rgba(10, 12, 18, 0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    display: flex; align-items: center; gap: 28px;
+    height: 60px;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .logo svg { display: block; }
+  .nav-links { display: flex; gap: 24px; margin-left: auto; align-items: center; }
+  .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-gh {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2); font-size: 14px; font-weight: 600;
+    transition: border-color .15s, background .15s;
+  }
+  .nav-gh:hover { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.08); }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 96px 0 84px; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 20px;
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--accent); opacity: .7; }
+  h1 {
+    font-size: clamp(38px, 5.4vw, 58px); line-height: 1.08;
+    font-weight: 800; letter-spacing: -0.03em; margin-bottom: 22px;
+  }
+  h1 .grad {
+    background: linear-gradient(92deg, var(--accent) 0%, var(--accent-2) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p.lede { font-size: 18px; color: var(--muted); max-width: 520px; margin-bottom: 34px; }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 12px 22px; border-radius: 12px;
+    font-size: 15px; font-weight: 600; border: 1px solid transparent;
+    transition: transform .15s, box-shadow .15s, border-color .15s, background .15s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #22d3ee, #6366f1);
+    color: #071016;
+    box-shadow: 0 8px 28px -8px rgba(34, 211, 238, 0.45);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 32px -8px rgba(34, 211, 238, 0.55); }
+  .btn-ghost { border-color: var(--border-strong); background: var(--surface-2); color: var(--text); }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.08); }
+  .hero-stats { display: flex; gap: 36px; margin-top: 46px; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat span { font-size: 13px; color: var(--faint); }
+
+  /* ---------- hero visual ---------- */
+  .hero-visual { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .chip-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .chip {
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: 999px; padding: 7px 14px; white-space: nowrap;
+  }
+  .chip b { color: var(--text); font-weight: 600; }
+  .flow-arrow { color: var(--faint); font-size: 18px; line-height: 1; }
+  .hub {
+    position: relative; text-align: center;
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    background: linear-gradient(180deg, rgba(34,211,238,0.08), rgba(129,140,248,0.05));
+    border-radius: var(--radius); padding: 20px 30px;
+    box-shadow: 0 0 60px -18px rgba(34, 211, 238, 0.35);
+  }
+  .hub .hub-title { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
+  .hub .hub-sub { font-family: var(--mono); font-size: 12px; color: var(--accent); margin-top: 4px; }
+  .event-pills { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .pill {
+    font-family: var(--mono); font-size: 12.5px; border-radius: 999px; padding: 7px 14px;
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .pill b { font-weight: 600; }
+  .pill .ok { color: var(--green); }
+  .pill .warn { color: var(--amber); }
+
+  /* ---------- sections ---------- */
+  section { padding: 84px 0; scroll-margin-top: 76px; }
+  .section-head { max-width: 640px; margin-bottom: 44px; }
+  .section-head h2 { font-size: clamp(26px, 3.4vw, 34px); font-weight: 700; letter-spacing: -0.025em; margin-bottom: 12px; }
+  .section-head p { color: var(--muted); font-size: 16px; }
+
+  /* principles */
+  .principles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card {
+    border: 1px solid var(--border); background: var(--surface);
+    border-radius: var(--radius); padding: 24px;
+    transition: transform .2s, border-color .2s, background .2s;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(34, 211, 238, 0.35); background: var(--surface-2); }
+  .card .icon {
+    width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+    background: rgba(34, 211, 238, 0.10); border: 1px solid rgba(34, 211, 238, 0.22);
+    color: var(--accent); margin-bottom: 16px;
+  }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .card p { font-size: 14px; color: var(--muted); }
+
+  /* pipeline */
+  .pipeline-wrap { border: 1px solid var(--border); border-radius: 20px; background: var(--surface); padding: 36px 28px; }
+  .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .stage { position: relative; text-align: center; padding: 0 4px; }
+  .stage:not(:last-child)::after {
+    content: "→"; position: absolute; right: -12px; top: 42px;
+    color: var(--faint); font-size: 15px;
+  }
+  .stage-dot {
+    width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px;
+    display: grid; place-items: center;
+    background: rgba(34, 211, 238, 0.08); border: 1px solid rgba(34, 211, 238, 0.22);
+    color: var(--accent); font-family: var(--mono); font-weight: 600; font-size: 15px;
+  }
+  .stage h4 { font-size: 14.5px; font-weight: 700; margin-bottom: 6px; }
+  .stage p { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .stage code { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
+
+  /* sensors */
+  .sensor-table { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .sensor-table th {
+    text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--faint); background: var(--surface-2); padding: 14px 20px; border-bottom: 1px solid var(--border);
+  }
+  .sensor-table td { padding: 18px 20px; border-bottom: 1px solid var(--border); font-size: 14.5px; vertical-align: top; }
+  .sensor-table tr:last-child td { border-bottom: none; }
+  .sensor-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .sensor-table .name { font-weight: 600; white-space: nowrap; }
+  .sensor-table .name span { display: block; font-weight: 400; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+  .sensor-table .mono { font-family: var(--mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 500;
+    border-radius: 999px; padding: 4px 11px; white-space: nowrap;
+  }
+  .badge-ok { color: var(--green); border: 1px solid rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.08); }
+  .badge-soon { color: var(--amber); border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.07); }
+  .sensor-note { margin-top: 16px; font-size: 13.5px; color: var(--faint); }
+
+  /* roadmap */
+  .timeline { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .phase { border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; background: var(--surface); }
+  .phase.current { border-color: rgba(34, 211, 238, 0.4); background: linear-gradient(180deg, rgba(34,211,238,0.06), rgba(255,255,255,0.02)); }
+  .phase-tag {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em;
+    display: inline-block; margin-bottom: 12px;
+  }
+  .phase.done .phase-tag { color: var(--green); }
+  .phase.current .phase-tag { color: var(--accent); }
+  .phase.next .phase-tag { color: var(--faint); }
+  .phase h4 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .phase p { font-size: 13.5px; color: var(--muted); }
+
+  /* quickstart */
+  .qs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .code-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #0c0e15; }
+  .code-card .bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .code-card .bar span { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .copy {
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+    border: 1px solid var(--border); background: transparent; border-radius: 7px;
+    padding: 4px 10px; cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .copy:hover { color: var(--text); border-color: var(--border-strong); }
+  .code-card pre { padding: 18px 20px; overflow-x: auto; }
+  .code-card code { font-family: var(--mono); font-size: 13.5px; line-height: 1.75; color: #c9d1d9; }
+  .tok-c { color: #5b6472; }
+  .tok-p { color: var(--accent); }
+  .tok-s { color: #a5d6ff; }
+  .tok-k { color: var(--accent-2); }
+
+  /* footer */
+  footer { border-top: 1px solid var(--border); padding: 44px 0 56px; margin-top: 40px; }
+  .foot { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .foot .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .foot p { font-size: 13.5px; color: var(--faint); margin-top: 10px; max-width: 380px; }
+  .foot-links { display: flex; gap: 40px; }
+  .foot-links div { display: flex; flex-direction: column; gap: 10px; }
+  .foot-links b { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .foot-links a { font-size: 13.5px; color: var(--faint); transition: color .15s; }
+  .foot-links a:hover { color: var(--text); }
+  .foot-bottom { margin-top: 36px; font-size: 12.5px; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+  /* reveal on scroll */
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .card, .btn { transition: none; }
+  }
+
+  /* responsive */
+  @media (max-width: 920px) {
+    .hero { padding: 64px 0 64px; }
+    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+    .principles { grid-template-columns: repeat(2, 1fr); }
+    .pipeline { grid-template-columns: 1fr; gap: 22px; }
+    .stage:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -20px; transform: translateX(50%); }
+    .timeline { grid-template-columns: 1fr; }
+    .qs-grid { grid-template-columns: 1fr; }
+    .nav-links a:not(.nav-gh) { display: none; }
+    .sensor-table { display: block; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="backdrop"></div>
+
+<nav>
+  <div class="container nav-inner">
+    <a class="logo" href="#top" aria-label="TacStack home">
+      <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="rgba(34,211,238,0.12)"/>
+        <circle cx="10" cy="10" r="3" fill="#22d3ee"/>
+        <circle cx="22" cy="10" r="3" fill="#22d3ee" opacity=".5"/>
+        <circle cx="10" cy="22" r="3" fill="#22d3ee" opacity=".5"/>
+        <circle cx="22" cy="22" r="3" fill="#22d3ee"/>
+      </svg>
+      TacStack
+    </a>
+    <div class="nav-links">
+      <a href="#principles">Principles</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#sensors">Sensors</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#quickstart">Quick start</a>
+      <a class="nav-gh" href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="container hero-grid">
+    <div>
+      <div class="eyebrow">Open source · Apache-2.0 · Python 3.12+</div>
+      <h1>One contract for<br>every <span class="grad">tactile sensor</span>.</h1>
+      <p class="lede">
+        TacStack is a cross-sensor tactile semantics and runtime for robotics.
+        Raw data stays intact; a unified Observation, model interface and Event
+        contract sits on top — so bringing up a new sensor costs hours, not weeks.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#quickstart">Get started</a>
+        <a class="btn btn-ghost" href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          View source
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><b>4</b><span>sensor codecs verified</span></div>
+        <div class="stat"><b>3</b><span>tactile modalities unified</span></div>
+        <div class="stat"><b>0</b><span>heavy deps in core</span></div>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="chip-row">
+        <span class="chip"><b>GelSight</b> · image</span>
+        <span class="chip"><b>uSkin</b> · 4×4 taxels</span>
+        <span class="chip"><b>PX6D</b> · 6-axis F/T</span>
+        <span class="chip"><b>PX3Q</b> · torque</span>
+      </div>
+      <div class="flow-arrow">↓&nbsp;&nbsp;↓&nbsp;&nbsp;↓</div>
+      <div class="hub">
+        <div class="hub-title">TactileObservation</div>
+        <div class="hub-sub">raw-first · one contract</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="event-pills">
+        <span class="pill"><b class="ok">contact_begin</b> · 0.98</span>
+        <span class="pill"><b class="warn">slip</b> · 0.41</span>
+        <span class="pill"><b>TactileEvent</b> → timeline</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="principles">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>Principles that hold the stack together</h2>
+        <p>Four commitments, applied to every adapter, model and integration decision.</p>
+      </div>
+      <div class="principles">
+        <div class="card reveal">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h7"/></svg></div>
+          <h3>Raw-first</h3>
+          <p>Vendor payloads are preserved verbatim in raw / metadata. Nothing is normalized away at ingest.</p>
+        </div>
+        <div class="card reveal">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5Z"/><path d="M3 13l9 5 9-5"/></svg></div>
+          <h3>Semantics-first</h3>
+          <p>One Observation and Event contract spans sensors and modalities — images, taxel matrices, force/torque.</p>
+        </div>
+        <div class="card reveal">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v4H4M15 20v-4h5"/></svg></div>
+          <h3>Edge-first</h3>
+          <p>Core depends on neither ROS2, cloud services nor training frameworks. Runs where the robot runs.</p>
+        </div>
+        <div class="card reveal">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 11l10-5M7 13l10 5"/></svg></div>
+          <h3>Integration-first</h3>
+          <p>Reuse the ecosystems that already work: MCAP, Foxglove, Rerun. Heavy dependencies stay opt-in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>From raw episodes to robot-ready events</h2>
+        <p>The offline loop runs end to end today — every stage is a tested, documented contract.</p>
+      </div>
+      <div class="pipeline-wrap reveal">
+        <div class="pipeline">
+          <div class="stage">
+            <div class="stage-dot">01</div>
+            <h4>Dataset</h4>
+            <p>Open-X-Tactile tar / zarr episodes; MCAP replay for recorded runs.</p>
+          </div>
+          <div class="stage">
+            <div class="stage-dot">02</div>
+            <h4>Observation</h4>
+            <p><code>TactileObservation</code> — image streams, taxel matrices, wrench in one shape.</p>
+          </div>
+          <div class="stage">
+            <div class="stage-dot">03</div>
+            <h4>Runtime</h4>
+            <p>Contact / slip baselines via builtin scorers or ONNX artifacts.</p>
+          </div>
+          <div class="stage">
+            <div class="stage-dot">04</div>
+            <h4>Events</h4>
+            <p><code>TactileEvent</code>s marked on a synchronized Rerun timeline, annotatable.</p>
+          </div>
+          <div class="stage">
+            <div class="stage-dot">05</div>
+            <h4>Benchmark</h4>
+            <p>Reproducible per-episode reports with quality and calibration tracking.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="sensors">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>Sensor protocols, verified against the manuals</h2>
+        <p>Each codec is golden-tested byte-for-byte against worked frames from its vendor manual — no hardware required to develop against it.</p>
+      </div>
+      <table class="sensor-table reveal">
+        <thead>
+          <tr><th>Sensor</th><th>Output</th><th>Link</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name">M0404S<span>resistive matrix kit</span></td>
+            <td>4×4 matrix · 16 taxels</td>
+            <td class="mono">UART 115200, active push</td>
+            <td><span class="badge badge-ok">● codec ready</span></td>
+          </tr>
+          <tr>
+            <td class="name">PaXini PX-6AX GEN3<span>tactile skin</span></td>
+            <td>per-point 3-axis force + resultant</td>
+            <td class="mono">UART 921600, req–resp</td>
+            <td><span class="badge badge-ok">● codec ready</span></td>
+          </tr>
+          <tr>
+            <td class="name">PaXini PX6D<span>six-axis F/T</span></td>
+            <td>Fx, Fy, Fz, Mx, My, Mz · float32</td>
+            <td class="mono">USB / RS485 · 1 kHz</td>
+            <td><span class="badge badge-ok">● codec ready</span></td>
+          </tr>
+          <tr>
+            <td class="name">PaXini PX3Q<span>joint torque</span></td>
+            <td>Mx, My, Mz · N·m · 30/50/100 FS</td>
+            <td class="mono">USB / RS485 · 921600</td>
+            <td><span class="badge badge-ok">● codec ready</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="sensor-note reveal">
+        Live serial adapters, record / replay / inference over real hardware and a
+        30-minute stability run are the Phase 5 deliverables —
+        <span class="badge badge-soon">live adapters · awaiting hardware</span>
+      </p>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>Where the project stands</h2>
+        <p>Phase 0–4 are complete. The next milestone is the first live sensor.</p>
+      </div>
+      <div class="timeline">
+        <div class="phase done reveal">
+          <span class="phase-tag">PHASE 0–2 · DONE</span>
+          <h4>Contracts, data path, replay</h4>
+          <p>Package and core contracts; Open-X-Tactile adapter for image / matrix / F/T streams; MCAP export and Rerun replay with C/S/U annotation.</p>
+        </div>
+        <div class="phase done reveal">
+          <span class="phase-tag">PHASE 3 · DONE</span>
+          <h4>Runtime &amp; benchmark</h4>
+          <p>Contact / slip baselines with builtin and ONNX scoring backends; reproducible per-episode benchmark reports.</p>
+        </div>
+        <div class="phase done reveal">
+          <span class="phase-tag">PHASE 4 · DONE</span>
+          <h4>Quality &amp; calibration</h4>
+          <p>Two-level capability validation, dataset quality health reports, calibration provenance, per-stream benchmark grouping.</p>
+        </div>
+        <div class="phase current reveal">
+          <span class="phase-tag">PHASE 5 · IN PROGRESS</span>
+          <h4>First live sensor</h4>
+          <p>Live serial adapter, live record / replay / inference, device reconnect handling and a 30-minute stability run. Codecs are ready; hardware is on the way.</p>
+        </div>
+        <div class="phase next reveal">
+          <span class="phase-tag">PHASE 6 · PLANNED</span>
+          <h4>v0.1 release</h4>
+          <p>External-user Quickstart, English documentation and the first tagged release.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="quickstart">
+    <div class="container">
+      <div class="section-head reveal">
+        <h2>Up and running in one minute</h2>
+        <p>Python 3.12+ and <a href="https://docs.astral.sh/uv/" target="_blank" rel="noopener" style="color:var(--accent)">uv</a>. Install from source; no PyPI package yet.</p>
+      </div>
+      <div class="qs-grid">
+        <div class="code-card reveal">
+          <div class="bar"><span>terminal</span><button class="copy" data-copy="quickstart-cmds">copy</button></div>
+          <pre><code id="quickstart-cmds"><span class="tok-c"># clone and install (uv manages everything)</span>
+git clone https://github.com/mailes/TacStack.git
+cd TacStack
+uv sync
+
+<span class="tok-c"># guided tour — no data download, no hardware</span>
+<span class="tok-p">uv run</span> tacstack demo
+
+<span class="tok-c"># replay a real episode layout into Rerun</span>
+<span class="tok-p">uv run</span> tacstack dataset list tests/fixtures/open_x_tactile/demo_wipe.tar
+<span class="tok-p">uv run</span> tacstack replay tests/fixtures/open_x_tactile/demo_wipe.tar --viewer</code></pre>
+        </div>
+        <div class="code-card reveal">
+          <div class="bar"><span>contract_example.py</span><button class="copy" data-copy="quickstart-code">copy</button></div>
+          <pre><code id="quickstart-code"><span class="tok-k">from</span> tacstack <span class="tok-k">import</span> TactileEvent
+
+sample = TactileEvent(
+    timestamp_ns=<span class="tok-s">0</span>,
+    sensor_id=<span class="tok-s">"synthetic"</span>,
+    kind=<span class="tok-s">"contact_begin"</span>,
+    probability=<span class="tok-s">1.0</span>,
+    model_id=<span class="tok-s">"contract-example"</span>,
+    latency_ms=<span class="tok-s">0.0</span>,
+)</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="foot">
+      <div>
+        <div class="brand">
+          <svg width="20" height="20" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <rect width="32" height="32" rx="7" fill="rgba(34,211,238,0.12)"/>
+            <circle cx="10" cy="10" r="3" fill="#22d3ee"/>
+            <circle cx="22" cy="10" r="3" fill="#22d3ee" opacity=".5"/>
+            <circle cx="10" cy="22" r="3" fill="#22d3ee" opacity=".5"/>
+            <circle cx="22" cy="22" r="3" fill="#22d3ee"/>
+          </svg>
+          TacStack
+        </div>
+        <p>Cross-sensor tactile semantics and runtime for robotics. Raw-first · Semantics-first · Edge-first · Integration-first.</p>
+      </div>
+      <div class="foot-links">
+        <div>
+          <b>Project</b>
+          <a href="https://github.com/mailes/TacStack" target="_blank" rel="noopener">GitHub repository</a>
+          <a href="https://github.com/mailes/TacStack/blob/main/docs/roadmap.md" target="_blank" rel="noopener">Roadmap</a>
+          <a href="https://github.com/mailes/TacStack/issues" target="_blank" rel="noopener">Issues</a>
+        </div>
+        <div>
+          <b>Docs</b>
+          <a href="https://github.com/mailes/TacStack/blob/main/docs/architecture.md" target="_blank" rel="noopener">Architecture</a>
+          <a href="https://github.com/mailes/TacStack/blob/main/docs/adapters.md" target="_blank" rel="noopener">Adapter guide</a>
+          <a href="https://github.com/mailes/TacStack/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> TacStack contributors. Apache-2.0 — dataset, model and third-party SDK licenses verified separately.</span>
+      <span>Built for robots that feel.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // copy-to-clipboard for code cards
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = document.getElementById(btn.dataset.copy).textContent;
+      navigator.clipboard.writeText(text).then(function () {
+        var old = btn.textContent;
+        btn.textContent = "copied ✓";
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      });
+    });
+  });
+  // reveal on scroll
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var reveals = document.querySelectorAll(".reveal");
+  if (reduced || !("IntersectionObserver" in window)) {
+    reveals.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(function (el) { io.observe(el); });
+  }
+  document.getElementById("year").textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
