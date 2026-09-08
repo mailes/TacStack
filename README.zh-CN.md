@@ -94,6 +94,8 @@ uv run pre-commit install
 1. 跨传感器标定、质量追踪与基于标注数据的评估（Phase 4）。
 2. 接入第一块真实传感器，验证 live record / replay / inference。
 
+可运行教程：[Tutorial 1 - 离线管线](docs/tutorials/tutorial-1-offline-pipeline.zh-CN.md)、
+[Tutorial 2 - 可视化与标注](docs/tutorials/tutorial-2-visualize-annotate.zh-CN.md)。
 详见 [开发路线](docs/roadmap.md)、[架构](docs/architecture.md)、
 [核心概念](docs/concepts.md)、[Adapter 指南](docs/adapters.md)、
 [Runtime](docs/runtime.md)、[Benchmark](docs/benchmark.md) 和 [贡献指南](CONTRIBUTING.md)。

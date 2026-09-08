@@ -706,5 +706,100 @@ def benchmark_cmd(
     )
 
 
+@app.command()
+def demo(
+    out_dir: Path = typer.Option(
+        Path("tacstack-demo"), "--out-dir", help="Directory for demo artifacts."
+    ),
+    viewer: bool = typer.Option(
+        False, "--viewer", help="Open the Rerun viewer on the demo recording at the end."
+    ),
+) -> None:
+    """Guided tour on the bundled fixture: quality -> MCAP -> events -> Rerun.
+
+    Runs entirely offline on the committed synthetic fixture (nothing is
+    downloaded); artifacts land in --out-dir for inspection.
+    """
+    fixture = (
+        Path(__file__).resolve().parents[3]
+        / "tests"
+        / "fixtures"
+        / "open_x_tactile"
+        / "demo_wipe.tar"
+    )
+    if not fixture.exists():
+        _fail(
+            RuntimeError("demo fixture not found; run tacstack demo from the repository checkout")
+        )
+    task, episode, stream = "Wipe_Demo", 1, "right_gripper"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with OpenXTactileArchive(fixture) as archive:
+        report = assess_task(archive.open_task(task))
+    (out_dir / "quality.json").write_text(to_debug_json(report) + "\n", encoding="utf-8")
+    typer.echo(
+        f"[1/4] quality: {report['episodes']} episodes, {report['frames']} frames, "
+        f"timestamps monotonic={report['timestamps']['monotonic']}"
+    )
+
+    adapter = _open_episode_adapter(fixture, task, episode, stream, 30.0, calibration_id="demo-cal")
+    mcap_path = out_dir / "tactile.mcap"
+    try:
+        summary = write_episode_mcap(observations(adapter), mcap_path, embed_payloads=True)
+    finally:
+        adapter.close()
+    typer.echo(f"[2/4] mcap: {summary.messages} embedded frames -> {mcap_path}")
+
+    events: list[TactileEvent] = []
+    for name in ("contact", "slip"):
+        model = _build_model(name, {}, None, None)
+        runtime = Runtime(model, window_frames=_default_window(name))
+        adapter = _open_episode_adapter(
+            fixture, task, episode, stream, 30.0, calibration_id="demo-cal"
+        )
+        try:
+            for observation in observations(adapter):
+                events.extend(runtime.process(observation))
+        finally:
+            adapter.close()
+    (out_dir / "events.json").write_text(to_debug_json(events) + "\n", encoding="utf-8")
+    typer.echo(f"[3/4] events: {len(events)} {_count_kinds(events)}")
+
+    rrd_path = out_dir / "tactile.rrd"
+    try:
+        from tacstack.integrations.rerun import RerunReplay
+    except ImportError as error:  # pragma: no cover - depends on optional extra
+        typer.echo(f"[4/4] rerun skipped ({error}); run: uv sync --extra rerun")
+    else:
+        replay_logger = RerunReplay()
+        replay_logger.save(rrd_path)
+        adapter = _open_episode_adapter(
+            fixture,
+            task,
+            episode,
+            stream,
+            30.0,
+            extra_arrays=("camera_main_rgb",),
+            calibration_id="demo-cal",
+        )
+        slip_runtime = Runtime(_build_model("slip", {}, None, None), window_frames=2)
+        try:
+            for observation in observations(adapter):
+                replay_logger.log_observation(observation)
+                for event in slip_runtime.process(observation):
+                    replay_logger.log_event(event)
+        finally:
+            adapter.close()
+            replay_logger.flush()
+        typer.echo(f"[4/4] rerun: {rrd_path}")
+
+    typer.echo("Demo complete. Inspect the recording with: uv run rerun " + str(rrd_path))
+    if viewer and rrd_path.exists():
+        import subprocess
+
+        subprocess.Popen(["rerun", str(rrd_path)])
+        typer.echo("opened the Rerun viewer")
+
+
 if __name__ == "__main__":
     app()

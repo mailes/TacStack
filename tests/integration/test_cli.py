@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -19,3 +20,14 @@ def test_version() -> None:
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert result.stdout.strip() == "0.1.0.dev0"
+
+
+def test_demo_command_writes_artifacts(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["demo", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "Demo complete" in result.output
+    assert "[2/4] mcap: 15 embedded frames" in result.output
+    for name in ("quality.json", "tactile.mcap", "events.json", "tactile.rrd"):
+        assert (tmp_path / name).exists(), f"missing demo artifact: {name}"
+    events = json.loads((tmp_path / "events.json").read_text())
+    assert events, "demo should record at least one TactileEvent"

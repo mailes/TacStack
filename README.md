@@ -40,6 +40,7 @@ cd TacStack
 uv sync
 uv run tacstack version
 uv run tacstack contract-demo
+uv run tacstack demo
 uv run python examples/contract_demo.py
 ```
 
@@ -104,7 +105,9 @@ uv run pre-commit install
 1. Cross-sensor calibration, quality tracking and labeled-data evaluation (Phase 4).
 2. Bring up the first real sensor and verify live record / replay / inference.
 
-See the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
+Runnable walkthroughs: [Tutorial 1 - offline pipeline](docs/tutorials/tutorial-1-offline-pipeline.zh-CN.md)
+and [Tutorial 2 - visualize & annotate](docs/tutorials/tutorial-2-visualize-annotate.zh-CN.md).
+See also the [roadmap](docs/roadmap.md), [architecture](docs/architecture.md),
 [concepts](docs/concepts.md), [adapter guide](docs/adapters.md),
 [runtime](docs/runtime.md), [benchmark](docs/benchmark.md) and the
 [contribution guide](CONTRIBUTING.md). Most of these docs are Chinese for now;
