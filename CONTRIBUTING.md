@@ -36,3 +36,8 @@
 
 - Core 保持轻量：厂商字段放 raw / metadata，重型依赖放未来的可选集成。
 - 新 Adapter 需要小型合法 fixture、来源说明、时间戳规则和集成测试。
+
+## 发布
+
+PyPI 发布由 tag 触发的 CI 自动完成（Trusted Publishing，无 token）。
+版本号升级、检查清单与故障排查见 [docs/release.zh-CN.md](docs/release.zh-CN.md)。

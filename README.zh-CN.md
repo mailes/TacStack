@@ -16,18 +16,27 @@ fixture 为合成内容（`tests/fixtures/README.md`）。
 
 ## 本地开始
 
-需要 Python 3.12+ 和 [uv](https://docs.astral.sh/uv/)。目前从源码安装，尚未发布 PyPI 包。
+需要 Python 3.12+。[PyPI](https://pypi.org/project/tacstack/) 已发布 alpha
+预发布版；引导式 demo 与内置样本需要源码仓库。
+
+```bash
+pip install --pre tacstack
+tacstack version
+tacstack contract-demo
+```
+
+`contract-demo` 输出一个带 `synthetic: true` 的 JSON 事件，不下载数据、不连接硬件。
+可选组件：`pip install --pre "tacstack[rerun,onnx]"`。
+
+开发方式（含引导式 `tacstack demo`、内置样本与 Rerun 回放）：
 
 ```bash
 git clone https://github.com/mailes/TacStack.git
 cd TacStack
-uv sync
-uv run tacstack version
-uv run tacstack contract-demo
+uv sync --extra rerun
+uv run tacstack demo
 uv run python examples/contract_demo.py
 ```
-
-`contract-demo` 输出一个带 `synthetic: true` 的 JSON 事件，不下载数据、不连接硬件。
 
 同一套 Observation contract 也能回放本地 tar 或解包目录里的 Open-X-Tactile
 episode（CI 和下面的示例只使用内置合成 fixture，不下载数据）：

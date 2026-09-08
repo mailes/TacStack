@@ -21,21 +21,28 @@ bundled dataset fixture is synthetic (`tests/fixtures/README.md`).
 
 ## Getting started
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). Install from source
-for now; no PyPI package yet.
+Requires Python 3.12+. An alpha prerelease is on
+[PyPI](https://pypi.org/project/tacstack/); the guided demo and the bundled
+fixtures need a repository checkout.
+
+```bash
+pip install --pre tacstack
+tacstack version
+tacstack contract-demo
+```
+
+`contract-demo` prints one JSON event flagged `synthetic: true`. It downloads no
+data and touches no hardware. Optional extras: `pip install --pre "tacstack[rerun,onnx]"`.
+
+For development — the guided `tacstack demo`, bundled fixtures and Rerun replay:
 
 ```bash
 git clone https://github.com/mailes/TacStack.git
 cd TacStack
-uv sync
-uv run tacstack version
-uv run tacstack contract-demo
+uv sync --extra rerun
 uv run tacstack demo
 uv run python examples/contract_demo.py
 ```
-
-`contract-demo` prints one JSON event flagged `synthetic: true`. It downloads no
-data and touches no hardware.
 
 The same Observation contract also replays real Open-X-Tactile episodes from a
 local tar or extracted directory (CI and the example below use only the bundled
