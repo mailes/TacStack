@@ -117,6 +117,44 @@ for observation in observations(adapter):
 - CLI：`tacstack replay` 与 `tacstack model run` 直接接受 `.mcap` 源，
   按扩展名自动分发。
 
+## LeRobot 数据集互导（integrations.lerobot + adapters.lerobot）
+
+TacStack 观测流可写出为 LeRobot v3.0 数据集目录（LeRobot 工具链原生可读），
+反向也能把 LeRobot 数据集中的触觉数组特征回放为 TactileObservation，与
+OXT / MCAP 源走同一条 runtime → event 管线。布局与列编码按
+huggingface/lerobot `CODEBASE_VERSION "v3.0"` 对齐（`meta/info.json`、
+`meta/tasks.parquet`、`meta/episodes/`、`data/chunk-XXX/file-XXX.parquet`，
+snappy 压缩 + 字典编码），仅依赖 pyarrow（`uv sync --extra lerobot`），
+不依赖 LeRobot 本体。
+
+导出（一次 `add_episode` 写一个 episode / 一个数据 parquet）：
+
+```python
+from tacstack.integrations.lerobot import LeRobotDatasetWriter
+
+writer = LeRobotDatasetWriter("out/dataset", fps=30, task="wipe")
+writer.add_episode(observations(adapter))  # taxel 流
+writer.finalize()
+```
+
+回放（自动选择含 "tactile" 的 `observation.*` 数组特征，或 `--stream` 指定）：
+
+```bash
+uv run tacstack model run contact out/dataset
+uv run tacstack replay out/dataset --out demo.rrd   # 需 --extra rerun
+```
+
+```python
+from tacstack.adapters.lerobot import LeRobotAdapter
+
+adapter = LeRobotAdapter("out/dataset", feature="observation.tactile", episode=0)
+```
+
+边界：payload 仅支持 1-D taxel 数组，dtype 原样保留（raw-first）；视频 /
+图像特征是 MP4 引用文件，TacStack 不解码。时间戳按 LeRobot 规则
+`timestamp = frame_index / fps` 派生 index-domain ns（与 OXT 时间戳规则
+一致），源文件 timestamp 列保留在 `metadata["timestamp"]`。
+
 ## 标注（tacstack annotate，Phase 2）
 
 轻量 C/S/U 标记（C = contact、S = slip、U = unstable grasp），存为 Parquet
@@ -141,4 +179,15 @@ golden fixture 与真实布局的对应关系见 `tests/fixtures/README.md`。
 
 ## 仍为预留
 
-mcap_replay / ros2 / real_sensor 目录当前没有可调用实现。
+ros2 适配器与真实传感器的 live 采集层尚未实现。`real_sensor` 目录当前提供的
+是硬件无关层，已实现并测试：
+
+- M0404S / PaXini GEN3 / PX6D / PX3Q 协议编解码器——按厂商手册示例帧逐字节
+  golden 测试；串口 / USB 读取适配器随硬件到位（Phase 5）；
+- Meta DIGIT 视觉触觉传感器（`adapters/real_sensor/digit.py`）：USB 身份
+  （VID 0x2833 / PID 0x0209，官方 SDK udev 规则钉定）、udev 枚举映射
+  （`ID_MODEL="DIGIT"` + 序列号）、原始 UVC 帧 → `TactileObservation`
+  （modality `vision_tactile`，payload `tactile_image`，QVGA 320×240@60fps /
+  VGA 640×480@30fps），以及参考帧接触 / 滑动追踪——复用内置 contact / slip
+  模型的迟滞状态机，事件序列规则与 runtime 模型一致。OpenCV live 采集与
+  鱼眼 / LED 标定随硬件落地（Phase 5）。

@@ -7,10 +7,12 @@ Observation、模型接口和 Event contract，逐步降低不同传感器的接
 
 **当前状态：Phase 4 完成 / Phase 5（首块真实传感器）准备中。** 离线链路已端到端
 打通：数据集 → `TactileObservation` → MCAP / Rerun 回放 → contact / slip 事件
-（builtin / ONNX 双打分后端）→ benchmark 报告。四款真实传感器的协议编解码已按
-厂商手册黄金测试（见[已验证的传感器协议](#已验证的传感器协议)），实时串口
-适配器待硬件到货（Phase 5）。ROS2 集成尚未实现；内置数据集 fixture 为合成内容
-（`tests/fixtures/README.md`）。
+（builtin / ONNX 双打分后端）→ benchmark 报告。观测流可导出为 LeRobot v3.0
+数据集目录并直接回放（taxel 特征），直接复用其生态工具链。五款真实传感器的
+协议层均已离线验证（见[已验证的传感器协议](#已验证的传感器协议)）：四款串口
+编解码按厂商手册逐字节黄金测试，另有 Meta DIGIT 视觉触觉传感器的身份识别与
+语义层。实时适配器待硬件到货（Phase 5）。ROS2 集成尚未实现；内置数据集
+fixture 为合成内容（`tests/fixtures/README.md`）。
 
 ## 本地开始
 
@@ -52,10 +54,11 @@ sample = TactileEvent(
 
 ## 已验证的传感器协议
 
-四款真实传感器协议以纯 codec 层落地——帧构建/解析、校验、寄存器解码——
-全部按厂商手册中的示例帧逐字节对照并配有单元测试，不需要硬件即可完整验证。
-pyserial 实时适配器与 live record / replay / inference 是 Phase 5 的交付，
-待硬件到货。
+五款真实传感器的协议层均以硬件无关形式落地：四款为纯 codec 层——帧构建/解析、
+校验、寄存器解码——全部按厂商手册中的示例帧逐字节对照；第五款是 Meta DIGIT
+视觉触觉层：设备身份识别、原始帧到 Observation 的映射、参考帧接触 / 滑动追踪。
+以上全部由单元测试钉死，不需要硬件即可完整验证。实时采集适配器与 live record /
+replay / inference 是 Phase 5 的交付，待硬件到货。
 
 | 传感器 | 输出 | 链路 | Codec | 备注 |
 |---|---|---|---|---|
@@ -63,6 +66,7 @@ pyserial 实时适配器与 live record / replay / inference 是 Phase 5 的交�
 | 帕西尼 PX-6AX GEN3 | 逐测点三轴力 + 合力，0.1 N/LSB | UART 921600，请求-应答 | `adapters/real_sensor/paxini.py` | 寄存器协议，二补数 LRC |
 | 帕西尼 PX6D | 六维力扭矩 (Fx, Fy, Fz, Mx, My, Mz)，float32 | USB / RS485（CAN 同命令集） | `adapters/real_sensor/px6d.py` | 自动回传最高 1 kHz；请求 CRC8 由手册样例反推 |
 | 帕西尼 PX3Q | 三轴关节扭矩 Mx/My/Mz（N·m，按型号 30/50/100 N·m 满量程） | USB / RS485，921600 8N1 | `adapters/real_sensor/px3q.py` | 采样 1 kHz；CAN 封装手册有定义、暂缓实现（USB 为主） |
+| Meta DIGIT | 320×240 RGB 凝胶图像（视觉触觉） | USB UVC，QVGA 60fps（默认）/ VGA 30fps | `adapters/real_sensor/digit.py` | 开放硬件；身份 + 语义层，live 采集随硬件落地 |
 
 请求帧校验算法均由手册示例帧钉死。个别无法仅凭文档恢复的规则（PX6D / PX3Q
 的应答帧 CRC），解析保持宽松，缺口记录在各模块 docstring，待实测字节流确认。
@@ -74,10 +78,10 @@ pyserial 实时适配器与 live record / replay / inference 是 Phase 5 的交�
 ```text
 src/tacstack/
   core/           # 数据结构、基础验证、debug serialization
-  adapters/       # base 协议；open_x_tactile + mcap replay + real_sensor 编解码已实现
+  adapters/       # base 协议；open_x_tactile + mcap replay + real_sensor 编解码 + DIGIT 语义已实现
   runtime/        # model 协议；buffer / ONNX backend 预留
   models/         # contact / slip 预留
-  integrations/   # MCAP 导出 + Rerun 回放已实现；LeRobot / ROS2 预留
+  integrations/   # MCAP 导出 + Rerun 回放 + LeRobot v3.0 数据集导出已实现；ROS2 预留
   benchmark/      # 评估工具预留
   cli/            # version / contract-demo / dataset / replay / annotate / model run / benchmark
 examples/         # 可运行 contract_demo 与 replay_open_x_tactile

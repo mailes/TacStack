@@ -10,9 +10,13 @@ tactile sensors.
 **Status: Phase 4 done / Phase 5 (first live sensor) in preparation.** The
 offline loop works end to end — dataset → `TactileObservation` → MCAP / Rerun
 replay → contact / slip events (builtin or ONNX scoring) → benchmark report.
-Protocol codecs for four real sensors are implemented and golden-tested
-([Verified sensor protocols](#verified-sensor-protocols)); live serial adapters
-land with the hardware (Phase 5). ROS2 integration is not implemented yet; the
+Observation streams export to and replay from LeRobot v3.0 dataset directories
+(taxel features), riding that ecosystem's tooling directly. Protocol layers
+for five real sensors are implemented and tested offline
+([Verified sensor protocols](#verified-sensor-protocols)): four serial codecs
+verified byte-for-byte against their vendor manuals, plus the Meta DIGIT
+vision-tactile identity / semantics layer. Live adapters land with the
+hardware (Phase 5). ROS2 integration is not implemented yet; the
 bundled dataset fixture is synthetic (`tests/fixtures/README.md`).
 
 ## Getting started
@@ -59,11 +63,14 @@ sample = TactileEvent(
 
 ## Verified sensor protocols
 
-Four real sensor protocols ship as pure codec layers — frame building and
-parsing, checksums, register decoding — each verified byte-for-byte against the
-worked example frames in its vendor manual and pinned by unit tests, no
-hardware required. Live serial adapters plus live record / replay / inference
-over these sensors are the Phase 5 deliverables once the hardware arrives.
+Five real sensor protocol layers ship hardware-free. Four are pure codec
+layers — frame building and parsing, checksums, register decoding — verified
+byte-for-byte against the worked example frames in their vendor manuals. The
+fifth is the Meta DIGIT vision-tactile layer: device identity, raw-frame to
+observation mapping and reference-frame contact / slip tracking. All are
+pinned by unit tests with no hardware required. Live capture adapters plus
+live record / replay / inference are the Phase 5 deliverables once the
+hardware arrives.
 
 | Sensor | Output | Link | Codec | Notes |
 |---|---|---|---|---|
@@ -71,6 +78,7 @@ over these sensors are the Phase 5 deliverables once the hardware arrives.
 | PaXini PX-6AX GEN3 | per-point 3-axis force + resultant, 0.1 N/LSB | UART 921600, request–response | `adapters/real_sensor/paxini.py` | register protocol, two's-complement LRC |
 | PaXini PX6D | six-axis F/T wrench (Fx, Fy, Fz, Mx, My, Mz), float32 | USB / RS485 (CAN shares the command set) | `adapters/real_sensor/px6d.py` | auto-report up to 1 kHz; request CRC8 recovered from manual samples |
 | PaXini PX3Q | 3-axis joint torque Mx / My / Mz in N·m (30 / 50 / 100 N·m full scale by model) | USB / RS485, 921600 8N1 | `adapters/real_sensor/px3q.py` | 1 kHz sampling; CAN envelope documented but deferred, USB-first |
+| Meta DIGIT | 320×240 RGB gel image (vision-based tactile) | USB UVC, QVGA 60 fps (default) / VGA 30 fps | `adapters/real_sensor/digit.py` | open hardware; identity + semantics layer, live capture lands with hardware |
 
 Request-frame checksums are pinned by the manuals' example frames. Where a
 rule cannot be recovered from documentation alone (the response-frame CRC on
@@ -84,10 +92,10 @@ buy-time caveats live in
 ```text
 src/tacstack/
   core/           # data structures, basic validation, debug serialization
-  adapters/       # base protocol; open_x_tactile + mcap replay + real_sensor codecs implemented
+  adapters/       # base protocol; open_x_tactile + mcap replay + real_sensor codecs + DIGIT semantics implemented
   runtime/        # model protocol; buffer / ONNX backend reserved
   models/         # contact / slip reserved
-  integrations/   # MCAP export + Rerun replay implemented; LeRobot / ROS2 reserved
+  integrations/   # MCAP export + Rerun replay + LeRobot v3.0 dataset export implemented; ROS2 reserved
   benchmark/      # evaluation tooling reserved
   cli/            # version / contract-demo / dataset / replay / annotate / model run / benchmark
 examples/         # runnable contract_demo and replay_open_x_tactile
