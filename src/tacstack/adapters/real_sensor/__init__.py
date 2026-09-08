@@ -1,5 +1,6 @@
-"""Live sensor adapters. M0404S and PaXini GEN3 protocol codecs implemented;
-live serial adapters land with the hardware (Phase 5)."""
+"""Live sensor adapters. Protocol codecs implemented: M0404S, PaXini GEN3,
+PX6D six-axis F/T (USB) and PX3Q joint torque (USB/RS485); live serial
+adapters land with the hardware (Phase 5)."""
 
 from tacstack.adapters.real_sensor.m0404s import (
     M0404SFrame,
